@@ -1,0 +1,258 @@
+Design a modern responsive web dashboard interface for a Smart Plant Monitoring System focusing on Soil Moisture Monitoring and Irrigation Decision Support.
+
+The dashboard should look like a professional IoT analytics platform used for monitoring environmental sensors and controlling irrigation systems.
+
+The interface should support real-time monitoring, historical analysis, alerts, and irrigation control.
+
+The design must be clean, modern, minimal, and data-focused, similar to professional IoT dashboards used in agriculture technology platforms.
+
+Layout Structure
+
+Create a responsive web dashboard layout with the following structure:
+
+Top Header
+Left Navigation Sidebar
+Main Dashboard Content Area
+
+Header Section
+
+Include:
+
+Dashboard title: "Smart Plant Monitoring Dashboard"
+
+Subtitle: "Soil Moisture & Irrigation Monitoring"
+
+Sensor connection status indicator (Connected / Offline)
+
+Last updated timestamp
+
+Notification bell icon
+
+User profile icon
+
+The header background should be white with subtle shadow.
+
+Sidebar Navigation
+
+Left vertical sidebar with icons and labels.
+
+Menu items:
+
+Overview
+
+Soil Moisture
+
+Temperature & Humidity
+
+Motion Detection
+
+System Health
+
+Alerts
+
+Settings
+
+Highlight Soil Moisture as the active menu item.
+
+Sidebar color:
+Dark green (#1B5E20)
+
+Icons color:
+Light green or white.
+
+Main Dashboard Area
+
+The dashboard should be divided into four main sections arranged in a grid layout.
+
+Section 1: Soil Moisture Status Card
+
+Place a large card at the top left showing the current soil moisture level.
+
+Display:
+
+Large moisture value
+Example: 45%
+
+Below the value show the soil condition label.
+
+Possible states:
+
+Dry
+Moderate
+Optimal
+Overwatered
+
+Use color-coded indicators:
+
+Dry → Red (#E53935)
+Moderate → Yellow (#FDD835)
+Optimal → Green (#43A047)
+Overwatered → Blue (#1E88E5)
+
+Include:
+
+Sensor icon
+
+Last updated time
+
+Small moisture gauge or circular progress indicator.
+
+The card background should be white with soft shadow.
+
+Section 2: Soil Moisture Trend Chart
+
+Place a large line chart in the center of the dashboard.
+
+This chart shows soil moisture trends over time.
+
+Chart details:
+
+X-axis → Time (hours or days)
+Y-axis → Soil moisture percentage (0–100%)
+
+Features:
+
+Smooth green line showing moisture values
+Red dashed line representing minimum safe moisture threshold (e.g., 30%)
+Hover tooltip showing exact moisture value and timestamp
+
+Example tooltip:
+
+Time: 14:00
+Moisture: 38%
+
+Chart colors:
+
+Line color → Green (#2E7D32)
+Threshold line → Red dashed line (#E53935)
+
+Add filter buttons above the chart:
+
+Last 24 Hours
+Last 7 Days
+Last 30 Days
+
+Section 3: Irrigation Control Panel
+
+Place this section on the right side of the dashboard.
+
+Title:
+"Irrigation Control"
+
+Include:
+
+Pump Status Indicator
+
+Display:
+
+Pump Status: ON / OFF
+
+Use color indicator:
+
+Green → Pump Active
+Gray → Pump Off
+
+Add two buttons:
+
+Start Watering
+Stop Watering
+
+Button design:
+
+Start Watering → Green button (#2E7D32)
+Stop Watering → Red button (#C62828)
+
+Additional information:
+
+Last irrigation time
+Watering duration
+Next recommended watering time
+
+Include a small animated water pump icon.
+
+Section 4: Irrigation Alerts Panel
+
+Place this section at the bottom of the dashboard.
+
+Title:
+"Soil Moisture Alerts"
+
+Show alert cards with warning messages.
+
+Example alerts:
+
+"Warning: Soil moisture dropped below 30%. Irrigation recommended."
+
+Each alert should display:
+
+Alert message
+Time of alert
+Severity indicator
+
+Severity colors:
+
+Critical → Red
+Warning → Orange
+Normal → Green
+
+Include icons such as:
+
+Warning triangle
+Water drop icon
+
+Additional Visual Design Requirements
+
+The interface should use natural plant-related colors.
+
+Primary color palette:
+
+Dark green (#1B5E20)
+Leaf green (#2E7D32)
+Light green (#A5D6A7)
+
+Neutral colors:
+
+White background (#FFFFFF)
+Light gray (#F5F5F5)
+
+Charts should use soft green tones to represent plant health.
+
+Use rounded cards, soft shadows, and modern typography.
+
+Font style:
+
+Clean sans-serif font similar to Inter or Roboto.
+
+Interaction Features
+
+The dashboard should support:
+
+Real-time sensor updates
+Hover tooltips on charts
+Filter buttons for time ranges
+Clickable irrigation controls
+Alert notifications
+Responsive layout for desktop and tablet screens.
+
+Expected Data Displayed
+
+The dashboard should display:
+
+Current soil moisture percentage
+Moisture trend over time
+Irrigation status (pump on/off)
+Alert messages for low moisture
+Historical moisture patterns.
+
+Overall Design Style
+
+The design should resemble a professional IoT analytics dashboard used in smart agriculture platforms.
+
+The UI should emphasize:
+
+Quick interpretation
+Low cognitive load
+Clear visual hierarchy
+Real-time monitoring capability.
+
+The dashboard must feel modern, responsive, and visually clear, supporting data-driven irrigation decisions.
