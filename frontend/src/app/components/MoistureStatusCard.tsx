@@ -1,13 +1,41 @@
+import { useState, useEffect } from 'react';
 import { Droplets } from 'lucide-react';
+import axios from 'axios';
 
 export default function MoistureStatusCard() {
-  const moistureLevel = 45;
+  const [moistureLevel, setMoistureLevel] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState('');
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await axios.get('http://localhost:5000/api/sensors/latest');
+        if (res.data.success && res.data.data) {
+          setMoistureLevel(res.data.data.soil_moisture || 0);
+          const d = new Date(res.data.data.timestamp);
+          const now = new Date();
+          const diffMs = now.getTime() - d.getTime();
+          const diffMin = Math.floor(diffMs / 60000);
+          setLastUpdated(diffMin <= 0 ? 'just now' : `${diffMin} min ago`);
+        }
+      } catch (err) {
+        console.error('Error fetching moisture data', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+    const interval = setInterval(fetchData, 10000);
+    return () => clearInterval(interval);
+  }, []);
   
   const getStatus = (level: number) => {
     if (level < 30) return { label: 'Dry', color: '#E53935' };
     if (level < 40) return { label: 'Moderate', color: '#FDD835' };
     if (level <= 70) return { label: 'Optimal', color: '#43A047' };
-    return { label: 'Overwatered', color: '#1E88E5' };
+    if (level < 95) return { label: 'Wet', color: '#1E88E5' };
+    return { label: 'Saturated ⚠', color: '#B71C1C' };
   };
 
   const status = getStatus(moistureLevel);
@@ -68,7 +96,9 @@ export default function MoistureStatusCard() {
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <div className="text-2xl md:text-4xl font-bold text-gray-800">{moistureLevel}%</div>
+            <div className="text-2xl md:text-4xl font-bold text-gray-800">
+              {loading ? '...' : `${moistureLevel}%`}
+            </div>
             <div className="text-xs md:text-sm text-gray-500">Moisture</div>
           </div>
         </div>
@@ -80,7 +110,7 @@ export default function MoistureStatusCard() {
           >
             {status.label}
           </div>
-          <p className="text-xs text-gray-500 mt-2">Updated 2 min ago</p>
+          <p className="text-xs text-gray-500 mt-2">Updated {lastUpdated || '...'}</p>
         </div>
       </div>
     </div>

@@ -3,50 +3,9 @@ import { ThermometerSun, Droplets, Wind, Lightbulb, Waves, Zap, Leaf, Loader, Be
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import axios from 'axios';
 
-const StatCard = ({ icon: Icon, title, value, unit, color, status }: any) => (
-  <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-    <div className="flex items-center gap-2 mb-3 md:mb-4">
-      <div className={`p-2 md:p-3 rounded-lg ${color}`}>
-        <Icon className="w-4 h-4 md:w-5 md:h-5 text-white" />
-      </div>
-      <h3 className="text-xs md:text-sm font-medium text-gray-600">{title}</h3>
-    </div>
-    <div className="flex items-baseline justify-between">
-      <div>
-        <p className="text-2xl md:text-3xl font-bold text-gray-900">{value ?? '-'}</p>
-        <p className="text-xs text-gray-500">{unit}</p>
-      </div>
-      {status && (
-        <span className={`text-xs font-medium px-2 py-1 rounded ${status}`}>
-          {status === 'text-green-700 bg-green-50' && 'Good'}
-          {status === 'text-yellow-700 bg-yellow-50' && 'Fair'}
-          {status === 'text-red-700 bg-red-50' && 'Poor'}
-        </span>
-      )}
-    </div>
-  </div>
-);
+import StatCard from '../components/StatCard';
 
-// Trend Indicator Component
-const TrendIndicator = ({ current, previous, type = 'up' }: any) => {
-  if (previous === undefined || current === undefined) return null;
-  
-  const isIncreasing = current > previous;
-  const difference = Math.abs(current - previous).toFixed(1);
-  
-  return (
-    <div className="flex items-center gap-1 text-xs">
-      {isIncreasing ? (
-        <TrendingUp className="w-3 h-3 text-red-500" />
-      ) : (
-        <TrendingDown className="w-3 h-3 text-green-500" />
-      )}
-      <span className={isIncreasing ? 'text-red-600' : 'text-green-600'}>
-        {difference}% {isIncreasing ? '↑' : '↓'}
-      </span>
-    </div>
-  );
-};
+// Comfort Level Indicator
 
 // Comfort Level Indicator
 const ComfortLevelCard = ({ temperature, humidity }: any) => {
@@ -89,7 +48,6 @@ export default function Temperature() {
     maxTemp: 0,
     minTemp: 0,
     avgHumidity: 0,
-    peakLux: 0,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -144,7 +102,7 @@ export default function Temperature() {
     if (latestData.temperature > thresholds.maxTemp) {
       newAlerts.push({
         id: Date.now(),
-        message: `Temperature too high: ${latestData.temperature.toFixed(2)}°C (threshold: ${thresholds.maxTemp}°C)`,
+        message: `Temperature too high: ${latestData.temperature}°C (threshold: ${thresholds.maxTemp}°C)`,
         severity: 'danger',
         type: 'auto',
         timestamp: new Date().toLocaleTimeString(),
@@ -154,7 +112,7 @@ export default function Temperature() {
     if (latestData.temperature < thresholds.minTemp) {
       newAlerts.push({
         id: Date.now() + 1,
-        message: `Temperature too low: ${latestData.temperature.toFixed(2)}°C (threshold: ${thresholds.minTemp}°C)`,
+        message: `Temperature too low: ${latestData.temperature}°C (threshold: ${thresholds.minTemp}°C)`,
         severity: 'warning',
         type: 'auto',
         timestamp: new Date().toLocaleTimeString(),
@@ -164,7 +122,7 @@ export default function Temperature() {
     if (latestData.humidity > thresholds.maxHumidity) {
       newAlerts.push({
         id: Date.now() + 2,
-        message: `Humidity too high: ${latestData.humidity.toFixed(2)}% (threshold: ${thresholds.maxHumidity}%)`,
+        message: `Humidity too high: ${latestData.humidity}% (threshold: ${thresholds.maxHumidity}%)`,
         severity: 'warning',
         type: 'auto',
         timestamp: new Date().toLocaleTimeString(),
@@ -174,7 +132,7 @@ export default function Temperature() {
     if (latestData.humidity < thresholds.minHumidity) {
       newAlerts.push({
         id: Date.now() + 3,
-        message: `Humidity too low: ${latestData.humidity.toFixed(2)}% (threshold: ${thresholds.minHumidity}%)`,
+        message: `Humidity too low: ${latestData.humidity}% (threshold: ${thresholds.minHumidity}%)`,
         severity: 'info',
         type: 'auto',
         timestamp: new Date().toLocaleTimeString(),
@@ -212,8 +170,8 @@ export default function Temperature() {
       return;
     }
 
-    const headers = ['Time', 'Temperature (°C)', 'Humidity (%)', 'eCO2 (ppm)', 'AQI'];
-    const rows = chartData.map((d) => [d.time, d.temp, d.humidity, d.eco2, d.aqi]);
+    const headers = ['Time', 'Temperature (°C)', 'Humidity (%)'];
+    const rows = chartData.map((d) => [d.time, d.temp, d.humidity]);
 
     let csvContent = 'data:text/csv;charset=utf-8,' + headers.join(',') + '\n';
     rows.forEach((row) => {
@@ -235,13 +193,10 @@ export default function Temperature() {
         setLoading(true);
         setError('');
         
-        const res = await axios.get('http://localhost:5000/api/sensors');
-        
-        console.log('API Response:', res.data);
-        
-        if (res.data.success && res.data.data && res.data.data.length > 0) {
-          const allData = res.data.data;
-          
+        // Fetch readings
+        const resData = await axios.get('http://localhost:5000/api/sensors');
+        if (resData.data.success && resData.data.data && resData.data.data.length > 0) {
+          const allData = resData.data.data;
           setPreviousData(latestData);
           setLatestData(allData[0]);
           
@@ -252,34 +207,26 @@ export default function Temperature() {
               const d = new Date(item.timestamp);
               return {
                 time: `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`,
-                temp: parseFloat(item.temperature?.toFixed(2)) || 0,
-                humidity: parseFloat(item.humidity?.toFixed(2)) || 0,
-                tvoc: item.tvoc || 0,
-                eco2: item.eco2 || 0,
-                aqi: item.aqi || 0,
-                lux: parseFloat(item.lux?.toFixed(1)) || 0,
+                temp: item.temperature || 0,
+                humidity: item.humidity || 0,
               };
             });
-          
           setChartData(processedData);
-          
-          const temperatures = allData.map((d: any) => d.temperature || 0);
-          const humidities = allData.map((d: any) => d.humidity || 0);
-          const luxValues = allData.map((d: any) => d.lux || 0);
-          
+        }
+
+        // Fetch aggregates (Holistic Fix)
+        const resStats = await axios.get('http://localhost:5000/api/sensors/stats');
+        if (resStats.data.success) {
+          const s = resStats.data.data;
           setStats({
-            maxTemp: Math.max(...temperatures),
-            minTemp: Math.min(...temperatures),
-            avgHumidity: (humidities.reduce((a: number, b: number) => a + b, 0) / humidities.length).toFixed(1),
-            peakLux: Math.max(...luxValues),
+            maxTemp: s.temperature.max,
+            minTemp: s.temperature.min,
+            avgHumidity: s.humidity.avg,
           });
-        } else {
-          setError('No sensor data available. Please ensure data is being sent to the backend.');
         }
       } catch (err: any) {
         console.error('Error fetching temperature data:', err);
-        const errorMsg = err.response?.data?.message || err.message || 'Failed to fetch sensor data';
-        setError(`Connection Error: ${errorMsg}`);
+        setError(`Connection Error: ${err.message}`);
       } finally {
         setLoading(false);
       }
@@ -386,52 +333,40 @@ export default function Temperature() {
         </div>
       )}
 
-      {/* Main Environmental Metrics with Trends */}
+      {/* Main Environmental Metrics */}
       {latestData && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-          <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="p-3 rounded-lg bg-orange-500">
-                  <ThermometerSun className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-600">Temperature</h3>
-                  <TrendIndicator current={latestData.temperature} previous={previousData?.temperature} />
-                </div>
-              </div>
-            </div>
-            <p className="text-3xl font-bold text-gray-900">{latestData.temperature?.toFixed(2)}°C</p>
-            <div className="mt-3 inline-block px-3 py-1 rounded text-xs font-medium"
-              style={{
-                backgroundColor: latestData.temperature > thresholds.maxTemp ? '#fee2e2' : '#dcfce7',
-                color: latestData.temperature > thresholds.maxTemp ? '#991b1b' : '#166534',
-              }}>
-              {latestData.temperature > thresholds.maxTemp ? '⚠️ High' : '✓ Normal'}
-            </div>
-          </div>
+          <StatCard
+            icon={ThermometerSun}
+            title="Temperature"
+            value={latestData.temperature}
+            unit="°C"
+            trend={previousData ? {
+              value: Math.abs(latestData.temperature - previousData.temperature).toFixed(1),
+              isUp: latestData.temperature > previousData.temperature
+            } : undefined}
+            status={{
+              label: latestData.temperature > thresholds.maxTemp ? 'High' : 'Normal',
+              type: latestData.temperature > thresholds.maxTemp ? 'danger' : 'success'
+            }}
+            color="bg-orange-500"
+          />
 
-          <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="p-3 rounded-lg bg-blue-500">
-                  <Droplets className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-600">Humidity</h3>
-                  <TrendIndicator current={latestData.humidity} previous={previousData?.humidity} />
-                </div>
-              </div>
-            </div>
-            <p className="text-3xl font-bold text-gray-900">{latestData.humidity?.toFixed(2)}%</p>
-            <div className="mt-3 inline-block px-3 py-1 rounded text-xs font-medium"
-              style={{
-                backgroundColor: latestData.humidity > thresholds.maxHumidity ? '#fee2e2' : '#dcfce7',
-                color: latestData.humidity > thresholds.maxHumidity ? '#991b1b' : '#166534',
-              }}>
-              {latestData.humidity > thresholds.maxHumidity ? '⚠️ High' : '✓ Normal'}
-            </div>
-          </div>
+          <StatCard
+            icon={Droplets}
+            title="Humidity"
+            value={latestData.humidity}
+            unit="%"
+            trend={previousData ? {
+              value: Math.abs(latestData.humidity - previousData.humidity).toFixed(1),
+              isUp: latestData.humidity > previousData.humidity
+            } : undefined}
+            status={{
+              label: latestData.humidity > thresholds.maxHumidity ? 'High' : 'Normal',
+              type: latestData.humidity > thresholds.maxHumidity ? 'warning' : 'success'
+            }}
+            color="bg-blue-500"
+          />
 
           <ComfortLevelCard temperature={latestData.temperature} humidity={latestData.humidity} />
         </div>
@@ -440,19 +375,7 @@ export default function Temperature() {
       {/* Quick Actions Section */}
       <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
         <h2 className="text-base md:text-lg font-semibold text-gray-800 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button
-            onClick={() => setActions({ ...actions, lightsOn: !actions.lightsOn })}
-            className={`p-4 rounded-lg border-2 transition-all ${
-              actions.lightsOn
-                ? 'border-yellow-500 bg-yellow-50'
-                : 'border-gray-300 bg-white hover:border-yellow-300'
-            }`}>
-            <Lightbulb className={`w-6 h-6 mx-auto mb-2 ${actions.lightsOn ? 'text-yellow-500' : 'text-gray-400'}`} />
-            <p className="text-sm font-medium text-gray-700">Turn On Lights</p>
-            <p className="text-xs text-gray-500 mt-1">{actions.lightsOn ? 'ON' : 'OFF'}</p>
-          </button>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button
             onClick={() => setActions({ ...actions, fanOn: !actions.fanOn })}
             className={`p-4 rounded-lg border-2 transition-all ${
@@ -659,17 +582,9 @@ export default function Temperature() {
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
               <XAxis dataKey="time" stroke="#6B7280" style={{ fontSize: '10px' }} />
               <YAxis 
-                yAxisId="left"
                 stroke="#6B7280" 
                 style={{ fontSize: '10px' }}
                 label={{ value: 'Temperature (°C) / Humidity (%)', angle: -90, position: 'insideLeft', style: { fontSize: '10px' } }}
-              />
-              <YAxis 
-                yAxisId="right"
-                orientation="right"
-                stroke="#6B7280" 
-                style={{ fontSize: '10px' }}
-                label={{ value: 'eCO2 (ppm) / AQI', angle: 90, position: 'insideRight', style: { fontSize: '10px' } }}
               />
               <Tooltip 
                 contentStyle={{
@@ -682,7 +597,6 @@ export default function Temperature() {
               />
               <Legend wrapperStyle={{ fontSize: '12px' }} />
               <Line 
-                yAxisId="left"
                 type="monotone" 
                 dataKey="temp" 
                 stroke="#F97316" 
@@ -691,31 +605,12 @@ export default function Temperature() {
                 name="Temperature (°C)"
               />
               <Line 
-                yAxisId="left"
                 type="monotone" 
                 dataKey="humidity" 
                 stroke="#3B82F6" 
                 strokeWidth={2}
                 dot={false}
                 name="Humidity (%)"
-              />
-              <Line 
-                yAxisId="right"
-                type="monotone" 
-                dataKey="eco2" 
-                stroke="#8B5CF6" 
-                strokeWidth={2}
-                dot={false}
-                name="eCO2 (ppm)"
-              />
-              <Line 
-                yAxisId="right"
-                type="monotone" 
-                dataKey="aqi" 
-                stroke="#EF4444" 
-                strokeWidth={2}
-                dot={false}
-                name="Air Quality Index"
               />
             </LineChart>
           </ResponsiveContainer>
@@ -724,27 +619,28 @@ export default function Temperature() {
 
       {/* Summary Statistics */}
       {latestData && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-            <h3 className="text-xs md:text-sm font-medium text-gray-600 mb-2">Max Temperature</h3>
-            <p className="text-xl md:text-2xl font-bold text-orange-500">{stats.maxTemp.toFixed(2)}°C</p>
-            <p className="text-xs text-gray-500 mt-1">from all readings</p>
-          </div>
-          <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-            <h3 className="text-xs md:text-sm font-medium text-gray-600 mb-2">Min Temperature</h3>
-            <p className="text-xl md:text-2xl font-bold text-blue-500">{stats.minTemp.toFixed(2)}°C</p>
-            <p className="text-xs text-gray-500 mt-1">from all readings</p>
-          </div>
-          <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-            <h3 className="text-xs md:text-sm font-medium text-gray-600 mb-2">Avg Humidity</h3>
-            <p className="text-xl md:text-2xl font-bold text-blue-500">{stats.avgHumidity}%</p>
-            <p className="text-xs text-gray-500 mt-1">all readings</p>
-          </div>
-          <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-            <h3 className="text-xs md:text-sm font-medium text-gray-600 mb-2">Peak Light</h3>
-            <p className="text-xl md:text-2xl font-bold text-yellow-500">{stats.peakLux.toFixed(1)} lux</p>
-            <p className="text-xs text-gray-500 mt-1">from all readings</p>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
+          <StatCard
+            icon={ThermometerSun}
+            title="Max Temperature"
+            value={stats.maxTemp}
+            unit="°C"
+            color="bg-orange-100"
+          />
+          <StatCard
+            icon={ThermometerSun}
+            title="Min Temperature"
+            value={stats.minTemp}
+            unit="°C"
+            color="bg-blue-100"
+          />
+          <StatCard
+            icon={Droplets}
+            title="Avg Humidity"
+            value={stats.avgHumidity}
+            unit="%"
+            color="bg-blue-50"
+          />
         </div>
       )}
     </div>

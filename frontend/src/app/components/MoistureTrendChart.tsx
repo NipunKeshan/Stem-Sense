@@ -1,91 +1,74 @@
+import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import axios from 'axios';
 
 interface MoistureTrendChartProps {
   timeRange: string;
   onTimeRangeChange: (range: string) => void;
 }
 
-const data24h = [
-  { time: '00:00', moisture: 42 },
-  { time: '02:00', moisture: 40 },
-  { time: '04:00', moisture: 38 },
-  { time: '06:00', moisture: 36 },
-  { time: '08:00', moisture: 35 },
-  { time: '10:00', moisture: 52 },
-  { time: '12:00', moisture: 50 },
-  { time: '14:00', moisture: 48 },
-  { time: '16:00', moisture: 46 },
-  { time: '18:00', moisture: 45 },
-  { time: '20:00', moisture: 44 },
-  { time: '22:00', moisture: 43 },
-];
-
-const data7d = [
-  { time: 'Mon', moisture: 38 },
-  { time: 'Tue', moisture: 45 },
-  { time: 'Wed', moisture: 52 },
-  { time: 'Thu', moisture: 48 },
-  { time: 'Fri', moisture: 42 },
-  { time: 'Sat', moisture: 55 },
-  { time: 'Sun', moisture: 45 },
-];
-
-const data30d = [
-  { time: 'Week 1', moisture: 42 },
-  { time: 'Week 2', moisture: 48 },
-  { time: 'Week 3', moisture: 52 },
-  { time: 'Week 4', moisture: 45 },
-];
-
 export default function MoistureTrendChart({ timeRange, onTimeRangeChange }: MoistureTrendChartProps) {
-  const getData = () => {
-    switch (timeRange) {
-      case '7d': return data7d;
-      case '30d': return data30d;
-      default: return data24h;
-    }
-  };
+  const [chartData, setChartData] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await axios.get('http://localhost:5000/api/sensors');
+        if (res.data.success && res.data.data) {
+          const allData = [...res.data.data].reverse();
+
+          let sliced: any[];
+          if (timeRange === '7d') {
+            sliced = allData.slice(-168); // ~7 days of readings at 1/hr
+          } else if (timeRange === '30d') {
+            sliced = allData; // all available
+          } else {
+            sliced = allData.slice(-24); // last 24 readings
+          }
+
+          const processed = sliced.map((item: any) => {
+            const d = new Date(item.timestamp);
+            return {
+              time: timeRange === '24h'
+                ? `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
+                : `${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`,
+              moisture: item.soil_moisture || 0,
+            };
+          });
+          setChartData(processed);
+        }
+      } catch (err) {
+        console.error('Error fetching moisture trend', err);
+      }
+    };
+    fetchData();
+    const interval = setInterval(fetchData, 10000);
+    return () => clearInterval(interval);
+  }, [timeRange]);
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 md:mb-6 gap-3">
         <h2 className="text-base md:text-lg font-semibold text-gray-800">Soil Moisture Trend</h2>
         <div className="flex gap-2 overflow-x-auto">
-          <button
-            onClick={() => onTimeRangeChange('24h')}
-            className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
-              timeRange === '24h'
-                ? 'bg-[#2E7D32] text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            24 Hours
-          </button>
-          <button
-            onClick={() => onTimeRangeChange('7d')}
-            className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
-              timeRange === '7d'
-                ? 'bg-[#2E7D32] text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            7 Days
-          </button>
-          <button
-            onClick={() => onTimeRangeChange('30d')}
-            className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
-              timeRange === '30d'
-                ? 'bg-[#2E7D32] text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            30 Days
-          </button>
+          {['24h', '7d', '30d'].map((range) => (
+            <button
+              key={range}
+              onClick={() => onTimeRangeChange(range)}
+              className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
+                timeRange === range
+                  ? 'bg-[#2E7D32] text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {range === '24h' ? '24 Hours' : range === '7d' ? '7 Days' : '30 Days'}
+            </button>
+          ))}
         </div>
       </div>
       
       <ResponsiveContainer width="100%" height={250} className="md:h-[300px]">
-        <LineChart data={getData()}>
+        <LineChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
           <XAxis 
             dataKey="time" 
@@ -115,6 +98,12 @@ export default function MoistureTrendChart({ timeRange, onTimeRangeChange }: Moi
             stroke="#E53935" 
             strokeDasharray="5 5" 
             label={{ value: 'Min', position: 'right', fill: '#E53935', fontSize: 10 }}
+          />
+          <ReferenceLine 
+            y={95} 
+            stroke="#B71C1C" 
+            strokeDasharray="5 5" 
+            label={{ value: 'Safety', position: 'right', fill: '#B71C1C', fontSize: 10 }}
           />
           <Line 
             type="monotone" 

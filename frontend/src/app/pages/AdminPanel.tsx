@@ -12,13 +12,14 @@ interface User {
   permissions: string[];
 }
 
-const ALL_COMPONENTS = ['Overview', 'Soil Moisture', 'Temperature', 'Motion Detection', 'System Health', 'Alerts', 'Settings', 'Admin Panel'];
+const ALL_COMPONENTS = ['Overview', 'Soil Moisture', 'Temperature', 'Air Quality', 'Light Monitor', 'System Health', 'Alerts', 'Settings', 'Admin Panel'];
 
 const COMPONENT_ICONS: Record<string, string> = {
   'Overview': '📊',
   'Soil Moisture': '💧',
   'Temperature': '🌡️',
-  'Motion Detection': '🔍',
+  'Air Quality': '🌬️',
+  'Light Monitor': '☀️',
   'System Health': '⚙️',
   'Alerts': '🔔',
   'Settings': '⚙️',

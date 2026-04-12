@@ -1,8 +1,49 @@
-import { useState } from 'react';
-import { Power, Droplet } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Power, Droplet, AlertTriangle } from 'lucide-react';
+import axios from 'axios';
+
+const SOIL_SAFETY_THRESHOLD = 95;
 
 export default function IrrigationControl() {
   const [pumpStatus, setPumpStatus] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [soilMoisture, setSoilMoisture] = useState(0);
+  const [lastUpdate, setLastUpdate] = useState('');
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const res = await axios.get('http://localhost:5000/api/sensors/latest');
+        if (res.data.success && res.data.data) {
+          setPumpStatus(res.data.data.pump_state === 1);
+          setSoilMoisture(res.data.data.soil_moisture || 0);
+          const d = new Date(res.data.data.timestamp);
+          setLastUpdate(d.toLocaleTimeString());
+        }
+      } catch (err) {
+        console.error('Error fetching pump status', err);
+      }
+    };
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handlePumpToggle = async (on: boolean) => {
+    try {
+      setLoading(true);
+      await axios.post('http://localhost:5000/api/sensors/pump', {
+        pump: on ? 1 : 0
+      });
+      setPumpStatus(on);
+    } catch (err) {
+      console.error('Error toggling pump', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isSaturated = soilMoisture >= SOIL_SAFETY_THRESHOLD;
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
@@ -11,6 +52,17 @@ export default function IrrigationControl() {
         <h2 className="text-base md:text-lg font-semibold text-gray-800">Irrigation Control</h2>
       </div>
       
+      {/* Safety Override Banner */}
+      {isSaturated && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
+          <div>
+            <p className="text-xs font-medium text-red-800">Safety Override</p>
+            <p className="text-xs text-red-600">Soil: {soilMoisture}% — pump blocked (threshold: {SOIL_SAFETY_THRESHOLD}%)</p>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-4 md:space-y-6">
         <div className="flex items-center justify-between p-3 md:p-4 bg-gray-50 rounded-lg">
           <div className="flex items-center gap-2 md:gap-3">
@@ -33,17 +85,17 @@ export default function IrrigationControl() {
 
         <div className="space-y-2 md:space-y-3">
           <button
-            onClick={() => setPumpStatus(true)}
-            disabled={pumpStatus}
+            onClick={() => handlePumpToggle(true)}
+            disabled={pumpStatus || loading || isSaturated}
             className="w-full py-2.5 md:py-3 px-4 bg-[#2E7D32] text-white font-medium rounded-lg hover:bg-[#1B5E20] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm md:text-base"
           >
             <Droplet className="w-4 h-4 md:w-5 md:h-5" />
-            Start Watering
+            {isSaturated ? '⚠ Blocked — Soil Saturated' : 'Start Watering'}
           </button>
           
           <button
-            onClick={() => setPumpStatus(false)}
-            disabled={!pumpStatus}
+            onClick={() => handlePumpToggle(false)}
+            disabled={!pumpStatus || loading}
             className="w-full py-2.5 md:py-3 px-4 bg-[#C62828] text-white font-medium rounded-lg hover:bg-[#B71C1C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm md:text-base"
           >
             <Power className="w-4 h-4 md:w-5 md:h-5" />
@@ -53,16 +105,16 @@ export default function IrrigationControl() {
 
         <div className="pt-3 md:pt-4 border-t border-gray-200 space-y-2">
           <div className="flex justify-between text-xs md:text-sm">
-            <span className="text-gray-600">Last irrigation:</span>
-            <span className="font-medium text-gray-800">10:00 AM</span>
+            <span className="text-gray-600">Current soil moisture:</span>
+            <span className="font-medium text-gray-800">{soilMoisture}%</span>
           </div>
           <div className="flex justify-between text-xs md:text-sm">
-            <span className="text-gray-600">Duration:</span>
-            <span className="font-medium text-gray-800">15 minutes</span>
+            <span className="text-gray-600">Safety threshold:</span>
+            <span className="font-medium text-red-600">{SOIL_SAFETY_THRESHOLD}%</span>
           </div>
           <div className="flex justify-between text-xs md:text-sm">
-            <span className="text-gray-600">Next recommended:</span>
-            <span className="font-medium text-[#2E7D32]">6:00 PM</span>
+            <span className="text-gray-600">Last reading:</span>
+            <span className="font-medium text-gray-800">{lastUpdate || '...'}</span>
           </div>
         </div>
       </div>
