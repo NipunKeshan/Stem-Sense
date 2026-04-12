@@ -291,21 +291,21 @@ export default function Temperature() {
             title="Max Temperature"
             value={stats.maxTemp}
             unit="°C"
-            color="bg-orange-100"
+            color="bg-orange-500"
           />
           <StatCard
             icon={ThermometerSun}
             title="Min Temperature"
             value={stats.minTemp}
             unit="°C"
-            color="bg-blue-100"
+            color="bg-blue-600"
           />
           <StatCard
             icon={Droplets}
             title="Avg Humidity"
             value={stats.avgHumidity}
             unit="%"
-            color="bg-blue-50"
+            color="bg-cyan-500"
           />
         </div>
       )}

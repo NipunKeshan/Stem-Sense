@@ -202,28 +202,28 @@ export default function AirQuality() {
           icon={Wind}
           title="Peak AQI"
           value={stats.maxAqi}
-          color="bg-emerald-50"
+          color="bg-emerald-500"
         />
         <StatCard
           icon={Waves}
           title="Avg TVOC"
           value={stats.avgTvoc}
           unit="ppb"
-          color="bg-purple-50"
+          color="bg-purple-500"
         />
         <StatCard
           icon={Zap}
           title="Avg eCO₂"
           value={stats.avgEco2}
           unit="ppm"
-          color="bg-rose-50"
+          color="bg-rose-500"
         />
         <StatCard
           icon={Zap}
           title="Peak eCO₂"
           value={stats.maxEco2}
           unit="ppm"
-          color="bg-rose-100"
+          color="bg-rose-600"
         />
       </div>
     </div>

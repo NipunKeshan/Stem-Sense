@@ -207,21 +207,21 @@ export default function LightMonitor() {
           title="Peak Light"
           value={stats.peakLux}
           unit="lux"
-          color="bg-yellow-100"
+          color="bg-yellow-500"
         />
         <StatCard
           icon={Sun}
           title="Average Light"
           value={stats.avgLux}
           unit="lux"
-          color="bg-amber-100"
+          color="bg-amber-500"
         />
         <StatCard
           icon={Sunrise}
           title="Daily DLI"
           value={stats.currentDLI}
           unit="mol/m²"
-          color="bg-orange-100"
+          color="bg-orange-600"
         />
       </div>
     </div>
