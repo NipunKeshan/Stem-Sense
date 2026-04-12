@@ -224,25 +224,6 @@ export default function LightMonitor() {
           color="bg-orange-100"
         />
       </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-        <h2 className="text-base md:text-lg font-semibold text-gray-800 mb-4">Quick Actions</h2>
-        <div className="max-w-xs">
-          <button
-            onClick={() => setLightsOn(!lightsOn)}
-            className={`w-full p-4 rounded-lg border-2 transition-all flex flex-col items-center ${
-              lightsOn
-                ? 'border-yellow-500 bg-yellow-50'
-                : 'border-gray-200 bg-white hover:border-yellow-200'
-            }`}
-          >
-            <Lightbulb className={`w-6 h-6 mb-2 ${lightsOn ? 'text-yellow-500' : 'text-gray-400'}`} />
-            <p className="text-sm font-medium text-gray-700">Turn On Lights</p>
-            <p className="text-xs text-gray-500 mt-1">{lightsOn ? 'ON' : 'OFF'}</p>
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

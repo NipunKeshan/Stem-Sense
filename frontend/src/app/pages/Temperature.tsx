@@ -372,36 +372,6 @@ export default function Temperature() {
         </div>
       )}
 
-      {/* Quick Actions Section */}
-      <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-        <h2 className="text-base md:text-lg font-semibold text-gray-800 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <button
-            onClick={() => setActions({ ...actions, fanOn: !actions.fanOn })}
-            className={`p-4 rounded-lg border-2 transition-all ${
-              actions.fanOn
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-gray-300 bg-white hover:border-blue-300'
-            }`}>
-            <Wind className={`w-6 h-6 mx-auto mb-2 ${actions.fanOn ? 'text-blue-500' : 'text-gray-400'}`} />
-            <p className="text-sm font-medium text-gray-700">Turn On Fan</p>
-            <p className="text-xs text-gray-500 mt-1">{actions.fanOn ? 'ON' : 'OFF'}</p>
-          </button>
-
-          <button
-            onClick={() => setActions({ ...actions, windowOpen: !actions.windowOpen })}
-            className={`p-4 rounded-lg border-2 transition-all ${
-              actions.windowOpen
-                ? 'border-green-500 bg-green-50'
-                : 'border-gray-300 bg-white hover:border-green-300'
-            }`}>
-            <Wind className={`w-6 h-6 mx-auto mb-2 ${actions.windowOpen ? 'text-green-500' : 'text-gray-400'}`} />
-            <p className="text-sm font-medium text-gray-700">Open Windows</p>
-            <p className="text-xs text-gray-500 mt-1">{actions.windowOpen ? 'OPEN' : 'CLOSED'}</p>
-          </button>
-        </div>
-      </div>
-
       {/* Alerts and Thresholds Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Alerts Panel */}

@@ -16,6 +16,7 @@ const sensorDataSchema = new mongoose.Schema({
   dli: { type: Number, required: true },
   soil_moisture: { type: Number, required: true },
   pump_state: { type: Number, required: true },
+  manual_override: { type: Number, default: 0 },
   timestamp: { type: Date, default: Date.now }
 }, {
   timestamps: true,
@@ -29,6 +30,7 @@ const sensorDataSchema = new mongoose.Schema({
       ret.tvoc = roundTo(ret.tvoc, 0);
       ret.eco2 = roundTo(ret.eco2, 0);
       ret.dli = roundTo(ret.dli, 2);
+      ret.manual_override = ret.manual_override || 0;
       return ret;
     }
   },
@@ -42,6 +44,7 @@ const sensorDataSchema = new mongoose.Schema({
       ret.tvoc = roundTo(ret.tvoc, 0);
       ret.eco2 = roundTo(ret.eco2, 0);
       ret.dli = roundTo(ret.dli, 2);
+      ret.manual_override = ret.manual_override || 0;
       return ret;
     }
   }

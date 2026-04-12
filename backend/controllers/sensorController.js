@@ -44,7 +44,8 @@ const addSensorData = async (req, res) => {
       lux,
       dli,
       soil_moisture,
-      pump_state
+      pump_state,
+      manual_override
     } = req.body;
 
     // Create sensor record
@@ -58,7 +59,8 @@ const addSensorData = async (req, res) => {
       lux,
       dli,
       soil_moisture,
-      pump_state
+      pump_state,
+      manual_override: manual_override || 0
     });
 
     res.status(201).json({
@@ -240,6 +242,16 @@ const togglePump = async (req, res) => {
       });
     }
 
+    // Check for hardware override lock (PRODUCTION GRADE SAFETY)
+    const latest = await SensorData.findOne().sort({ timestamp: -1 });
+    if (latest && latest.manual_override === 1) {
+      return res.status(423).json({
+        success: false,
+        error: 'Hardware Override Active',
+        message: 'The physical override switch on NodeMCU is ON. Remote commands are disabled for safety.'
+      });
+    }
+
     desiredPumpState = pump;
 
     res.status(200).json({
@@ -258,11 +270,12 @@ const togglePump = async (req, res) => {
 // @access  Public
 const getPumpState = async (req, res) => {
   try {
-    const data = await SensorData.findOne().sort({ timestamp: -1 }).select('pump_state timestamp');
+    const data = await SensorData.findOne().sort({ timestamp: -1 }).select('pump_state manual_override timestamp');
     res.status(200).json({
       success: true,
       desired_pump_state: desiredPumpState,
-      actual_pump_state: data?.pump_state || 0
+      actual_pump_state: data?.pump_state || 0,
+      manual_override: data?.manual_override || 0
     });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Server Error', message: error.message });
