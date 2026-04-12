@@ -53,7 +53,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className="p-6 border-b border-green-700 flex items-center justify-between">
-          <h1 className="text-xl font-semibold">Plant Monitor</h1>
+          <h1 className="text-xl font-semibold">StemSense</h1>
           <button 
             onClick={onClose}
             className="lg:hidden p-1 hover:bg-green-700 rounded"
