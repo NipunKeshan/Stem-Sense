@@ -29,7 +29,7 @@ export default function Login() {
           <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mb-4">
             <Leaf className="w-8 h-8 text-white" />
           </div>
-          <h2 className="text-2xl font-bold text-center">Plant Monitor</h2>
+          <h2 className="text-2xl font-bold text-center">StemSense</h2>
           <p className="text-gray-400">Sign in to your account</p>
         </div>
         {error && <div className="bg-red-500/20 text-red-400 p-3 rounded mb-4 text-center">{error}</div>}

@@ -17,7 +17,7 @@ const seedAdmin = async () => {
         username: 'admin',
         password: 'admin123',
         role: 'admin',
-        permissions: ['Overview', 'Soil Moisture', 'Temperature', 'Motion Detection', 'System Health', 'Alerts', 'Settings', 'Admin Panel']
+        permissions: ['Overview', 'Soil Moisture', 'Temperature', 'Air Quality', 'Light Monitor', 'System Health', 'Alerts', 'Settings', 'Admin Panel']
       });
       console.log('Admin user seeded');
     }

@@ -83,7 +83,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
             <Menu className="w-6 h-6 text-gray-600" />
           </button>
           <div>
-            <h1 className="text-lg md:text-2xl font-semibold text-gray-800">Smart Plant Monitoring</h1>
+            <h1 className="text-lg md:text-2xl font-semibold text-gray-800">StemSense</h1>
             <p className="text-xs md:text-sm text-gray-600 hidden sm:block">Soil Moisture & Irrigation Monitoring</p>
           </div>
         </div>
