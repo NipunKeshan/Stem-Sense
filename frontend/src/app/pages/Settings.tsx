@@ -58,7 +58,13 @@ export default function Settings() {
                 </button>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs md:text-sm text-gray-700">Motion Detection Alerts</span>
+                <span className="text-xs md:text-sm text-gray-700">Air Quality Alerts</span>
+                <button className="w-12 h-6 bg-[#2E7D32] rounded-full relative flex-shrink-0">
+                  <div className="w-5 h-5 bg-white rounded-full absolute right-0.5 top-0.5"></div>
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs md:text-sm text-gray-700">Light Level Alerts</span>
                 <button className="w-12 h-6 bg-gray-300 rounded-full relative flex-shrink-0">
                   <div className="w-5 h-5 bg-white rounded-full absolute left-0.5 top-0.5"></div>
                 </button>

@@ -3,7 +3,8 @@ import Layout from "./components/Layout";
 import Overview from "./pages/Overview";
 import SoilMoisture from "./pages/SoilMoisture";
 import Temperature from "./pages/Temperature";
-import MotionDetection from "./pages/MotionDetection";
+import AirQuality from "./pages/AirQuality";
+import LightMonitor from "./pages/LightMonitor";
 import SystemHealth from "./pages/SystemHealth";
 import Alerts from "./pages/Alerts";
 import Settings from "./pages/Settings";
@@ -28,7 +29,8 @@ export const router = createBrowserRouter([
       { path: "admin", Component: AdminPanel },
       { path: "soil-moisture", Component: SoilMoisture },
       { path: "temperature", Component: Temperature },
-      { path: "motion", Component: MotionDetection },
+      { path: "air-quality", Component: AirQuality },
+      { path: "light", Component: LightMonitor },
       { path: "system-health", Component: SystemHealth },
       { path: "alerts", Component: Alerts },
       { path: "settings", Component: Settings },

@@ -1,31 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Droplets, ThermometerSun, Radar, TrendingUp } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Droplets, ThermometerSun, Wind, Sun, Power, TrendingUp, AlertTriangle } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
-const StatCard = ({ icon: Icon, title, value, unit, trend, color }: any) => (
-  <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-    <div className="flex items-center justify-between mb-3 md:mb-4">
-      <div className={`p-2 md:p-3 rounded-lg ${color}`}>
-        <Icon className="w-5 h-5 md:w-6 md:h-6 text-white" />
-      </div>
-      <div className="flex items-center gap-1 text-xs md:text-sm">
-        <TrendingUp className="w-3 h-3 md:w-4 md:h-4 text-green-600" />
-        <span className="text-green-600 font-medium">{trend}</span>
-      </div>
-    </div>
-    <h3 className="text-gray-600 text-xs md:text-sm mb-1">{title}</h3>
-    <p className="text-2xl md:text-3xl font-bold text-gray-800">
-      {value}<span className="text-base md:text-lg text-gray-500 ml-1">{unit}</span>
-    </p>
-  </div>
-);
+import StatCard from '../components/StatCard';
+
+const SOIL_SAFETY_THRESHOLD = 95;
 
 export default function Overview() {
   const { user } = useAuth();
   const [data, setData] = useState<any[]>([]);
   const [latestData, setLatestData] = useState<any | null>(null);
+  const [pumpLoading, setPumpLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -38,15 +25,13 @@ export default function Overview() {
             setLatestData(rawData[0]);
           }
 
-          // Format for chart: Need chronological order (earliest to latest)
           const chartData = [...rawData].reverse().slice(-100).map((item: any) => {
             const d = new Date(item.timestamp);
             return {
               time: `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`,
               moisture: item.soil_moisture || 0,
               temp: item.temperature || 0,
-              humidity: item.humidity || 0,
-              motionEvents: 0 // Mock property since motion might not be directly logged per reading
+              aqi: item.aqi || 0,
             };
           });
           setData(chartData);
@@ -61,45 +46,88 @@ export default function Overview() {
     return () => clearInterval(interval);
   }, []);
 
+  const handlePumpToggle = async (state: number) => {
+    try {
+      setPumpLoading(true);
+      await axios.post('http://localhost:5000/api/sensors/pump', { pump: state });
+      // Refresh data to show new state
+      const res = await axios.get('http://localhost:5000/api/sensors/latest');
+      if (res.data.success) {
+        setLatestData((prev: any) => ({ ...prev, pump_state: state }));
+      }
+    } catch (err) {
+      console.error('Error toggling pump', err);
+    } finally {
+      setPumpLoading(false);
+    }
+  };
+
+  const isSoilSaturated = (latestData?.soil_moisture || 0) >= SOIL_SAFETY_THRESHOLD;
+  const pumpIsOn = latestData?.pump_state === 1;
+
+  const getAQILabel = (aqi: number) => {
+    if (aqi <= 1) return 'Excellent';
+    if (aqi <= 2) return 'Good';
+    if (aqi <= 3) return 'Fair';
+    if (aqi <= 4) return 'Poor';
+    return 'Hazardous';
+  };
+
   return (
     <div className="space-y-4 md:space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+      {/* Safety Override Banner */}
+      {isSoilSaturated && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
+          <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-red-800">Safety Override Active</p>
+            <p className="text-xs text-red-600">Soil moisture is ≥ {SOIL_SAFETY_THRESHOLD}%. Pump is blocked to prevent waterlogging.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Stat Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-6">
         <StatCard
           icon={Droplets}
           title="Soil Moisture"
-          value={latestData?.soil_moisture || "0"}
+          value={latestData?.soil_moisture ?? "0"}
           unit="%"
-          trend="+5%"
           color="bg-[#2E7D32]"
         />
         <StatCard
           icon={ThermometerSun}
           title="Temperature"
-          value={latestData?.temperature || "0"}
+          value={latestData?.temperature ?? "0"}
           unit="°C"
-          trend="+2°C"
           color="bg-orange-500"
         />
         <StatCard
           icon={Droplets}
           title="Humidity"
-          value={latestData?.humidity || "0"}
+          value={latestData?.humidity ?? "0"}
           unit="%"
-          trend="-3%"
           color="bg-blue-500"
         />
         <StatCard
-          icon={Radar}
-          title="Motion Events"
-          value={latestData?.motionCount || "0"}
-          unit="today"
-          trend="+4"
-          color="bg-purple-500"
+          icon={Wind}
+          title="Air Quality"
+          value={latestData?.aqi ?? "0"}
+          unit={getAQILabel(latestData?.aqi || 0)}
+          color="bg-emerald-500"
+        />
+        <StatCard
+          icon={Sun}
+          title="Light"
+          value={latestData?.lux ?? "0"}
+          unit="lux"
+          color="bg-yellow-500"
         />
       </div>
 
+      {/* Chart */}
       <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-        <h2 className="text-base md:text-lg font-semibold text-gray-800 mb-4 md:mb-6">System Overview - Live History</h2>
+        <h2 className="text-base md:text-lg font-semibold text-gray-800 mb-4 md:mb-6">System Overview — Live History</h2>
         <ResponsiveContainer width="100%" height={250} className="md:h-[350px]">
           <AreaChart data={data}>
             <defs>
@@ -124,6 +152,7 @@ export default function Overview() {
                 fontSize: '12px'
               }}
             />
+            <Legend wrapperStyle={{ fontSize: '11px' }} />
             <Area 
               type="monotone" 
               dataKey="moisture" 
@@ -147,21 +176,46 @@ export default function Overview() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+        {/* Pump Control */}
         <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-          <h3 className="font-semibold text-gray-800 mb-3 md:mb-4 text-sm md:text-base">Quick Actions</h3>
+          <h3 className="font-semibold text-gray-800 mb-3 md:mb-4 text-sm md:text-base">Pump Control</h3>
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-4">
+            <div className="flex items-center gap-3">
+              <Power className={`w-6 h-6 ${pumpIsOn ? 'text-green-600' : 'text-gray-400'}`} />
+              <div>
+                <p className="text-sm font-medium text-gray-700">Pump Status</p>
+                <p className={`text-lg font-semibold ${pumpIsOn ? 'text-green-600' : 'text-gray-500'}`}>
+                  {pumpIsOn ? 'ON' : 'OFF'}
+                </p>
+              </div>
+            </div>
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+              pumpIsOn ? 'bg-green-100' : 'bg-gray-200'
+            }`}>
+              <div className={`w-6 h-6 rounded-full ${
+                pumpIsOn ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+              }`} />
+            </div>
+          </div>
           <div className="space-y-2">
-            <button className="w-full py-2.5 md:py-3 px-4 bg-[#2E7D32] text-white font-medium rounded-lg hover:bg-[#1B5E20] transition-colors text-left text-sm md:text-base">
-              Start Irrigation Cycle
+            <button
+              onClick={() => handlePumpToggle(1)}
+              disabled={pumpIsOn || pumpLoading || isSoilSaturated}
+              className="w-full py-2.5 px-4 bg-[#2E7D32] text-white font-medium rounded-lg hover:bg-[#1B5E20] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
+            >
+              {isSoilSaturated ? '⚠ Blocked — Soil Saturated' : 'Start Pump'}
             </button>
-            <button className="w-full py-2.5 md:py-3 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-left text-sm md:text-base">
-              View Detailed Analytics
-            </button>
-            <button className="w-full py-2.5 md:py-3 px-4 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors text-left text-sm md:text-base">
-              Download Report
+            <button
+              onClick={() => handlePumpToggle(0)}
+              disabled={!pumpIsOn || pumpLoading}
+              className="w-full py-2.5 px-4 bg-[#C62828] text-white font-medium rounded-lg hover:bg-[#B71C1C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
+            >
+              Stop Pump
             </button>
           </div>
         </div>
 
+        {/* System Status */}
         <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
           <h3 className="font-semibold text-gray-800 mb-3 md:mb-4 text-sm md:text-base">System Status</h3>
           <div className="space-y-2 md:space-y-3">
@@ -170,16 +224,22 @@ export default function Overview() {
               <span className="text-xs md:text-sm font-medium text-green-600">● Active</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs md:text-sm text-gray-600">Temperature Sensor</span>
+              <span className="text-xs md:text-sm text-gray-600">AHT21 (Temp/Humidity)</span>
               <span className="text-xs md:text-sm font-medium text-green-600">● Active</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs md:text-sm text-gray-600">Motion Detector</span>
+              <span className="text-xs md:text-sm text-gray-600">ENS160 (Air Quality)</span>
+              <span className="text-xs md:text-sm font-medium text-green-600">● Active</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs md:text-sm text-gray-600">BH1750 (Light)</span>
               <span className="text-xs md:text-sm font-medium text-green-600">● Active</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs md:text-sm text-gray-600">Irrigation Pump</span>
-              <span className="text-xs md:text-sm font-medium text-gray-500">● Standby</span>
+              <span className={`text-xs md:text-sm font-medium ${pumpIsOn ? 'text-green-600' : 'text-gray-500'}`}>
+                ● {pumpIsOn ? 'Running' : 'Standby'}
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs md:text-sm text-gray-600">Network Connection</span>
