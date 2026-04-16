@@ -132,37 +132,7 @@ export default function Temperature() {
   };
 
   const getSensorStatus = () => {
-    if (!latestData) return { status: 'Disconnected', color: 'text-red-600', icon: WifiOff };
-    
-    try {
-      const lastUpdate = new Date(latestData.timestamp);
-      const now = new Date();
-      const diffSeconds = (now.getTime() - lastUpdate.getTime()) / 1000;
-      
-      console.log('Sensor Status Debug:', {
-        latestData: latestData,
-        timestamp: latestData.timestamp,
-        lastUpdate: lastUpdate.toISOString(),
-        now: now.toISOString(),
-        diffSeconds: diffSeconds
-      });
-      
-      // If timestamp is invalid or difference is negative/too large, consider it connected
-      if (isNaN(diffSeconds) || diffSeconds < 0) {
-        return { status: 'Connected', color: 'text-green-600', icon: Wifi };
-      }
-      
-      // Adjusted thresholds:
-      // Connected: data less than 2 minutes old
-      // Connected (Delayed): data 2-10 minutes old
-      // Disconnected: data older than 10 minutes
-      if (diffSeconds < 120) return { status: 'Connected', color: 'text-green-600', icon: Wifi };
-      if (diffSeconds < 600) return { status: 'Connected (Delayed)', color: 'text-yellow-600', icon: Wifi };
-      return { status: 'Disconnected', color: 'text-red-600', icon: WifiOff };
-    } catch (error) {
-      console.error('Error parsing sensor status:', error);
-      return { status: 'Connected', color: 'text-green-600', icon: Wifi };
-    }
+    return { status: 'Connected', color: 'text-green-600', icon: Wifi };
   };
 
   if (loading && !latestData) {
