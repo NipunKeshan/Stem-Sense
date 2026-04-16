@@ -1,0 +1,231 @@
+import React, { useState, useEffect } from 'react';
+import { Wind, Waves, Zap, Loader, AlertTriangle } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import axios from 'axios';
+import StatCard from '../components/StatCard';
+
+const getAQILabel = (aqi: number) => {
+  if (aqi <= 1) return { label: 'Excellent', color: '#22c55e', bg: 'bg-green-50 text-green-700' };
+  if (aqi <= 2) return { label: 'Good', color: '#3b82f6', bg: 'bg-blue-50 text-blue-700' };
+  if (aqi <= 3) return { label: 'Fair', color: '#eab308', bg: 'bg-yellow-50 text-yellow-700' };
+  if (aqi <= 4) return { label: 'Poor', color: '#f97316', bg: 'bg-orange-50 text-orange-700' };
+  return { label: 'Hazardous', color: '#ef4444', bg: 'bg-red-50 text-red-700' };
+};
+
+const getTVOCStatus = (tvoc: number) => {
+  if (tvoc <= 100) return 'text-green-700 bg-green-50';
+  if (tvoc <= 300) return 'text-yellow-700 bg-yellow-50';
+  return 'text-red-700 bg-red-50';
+};
+
+const getECO2Status = (eco2: number) => {
+  if (eco2 <= 600) return 'text-green-700 bg-green-50';
+  if (eco2 <= 1000) return 'text-yellow-700 bg-yellow-50';
+  return 'text-red-700 bg-red-50';
+};
+
+export default function AirQuality() {
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [latestData, setLatestData] = useState<any>(null);
+  const [stats, setStats] = useState<any>({ maxAqi: 0, avgTvoc: 0, avgEco2: 0, maxEco2: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        
+        // Fetch chart data
+        const resData = await axios.get('http://localhost:5000/api/sensors');
+        if (resData.data.success && resData.data.data && resData.data.data.length > 0) {
+          const allData = resData.data.data;
+          setLatestData(allData[0]);
+
+          const processedData = [...allData]
+            .reverse()
+            .slice(-24)
+            .map((item: any) => {
+              const d = new Date(item.timestamp);
+              return {
+                time: `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`,
+                aqi: item.aqi || 0,
+                tvoc: item.tvoc || 0,
+                eco2: item.eco2 || 0,
+              };
+            });
+          setChartData(processedData);
+        }
+
+        // Fetch stats from backend
+        const resStats = await axios.get('http://localhost:5000/api/sensors/stats');
+        if (resStats.data.success) {
+          const s = resStats.data.data;
+          setStats({
+            maxAqi: s.aqi.max,
+            avgTvoc: s.tvoc.avg,
+            avgEco2: s.eco2.avg,
+            maxEco2: s.eco2.max,
+          });
+        }
+      } catch (err: any) {
+        setError(`Connection Error: ${err.message}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading && !latestData) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader className="w-8 h-8 animate-spin text-gray-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading air quality data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !latestData) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center text-red-600">
+          <p className="font-semibold">{error}</p>
+          <p className="text-sm mt-2">Ensure the backend is running at http://localhost:5000</p>
+        </div>
+      </div>
+    );
+  }
+
+  const aqiInfo = latestData ? getAQILabel(latestData.aqi) : getAQILabel(0);
+
+  return (
+    <div className="space-y-4 md:space-y-6">
+      {/* ENS160 Warm-up Notice */}
+      {latestData && latestData.aqi === 0 && latestData.tvoc === 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-amber-800">ENS160 Sensor Warming Up</p>
+            <p className="text-xs text-amber-600">The air quality sensor requires ~3 minutes to warm up. Data will appear once ready.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Main Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        <StatCard
+          icon={Wind}
+          title="Air Quality"
+          value={latestData?.aqi ?? "-"}
+          unit={aqiInfo.label}
+          status={{
+            label: aqiInfo.label,
+            type: latestData?.aqi <= 2 ? 'success' : latestData?.aqi <= 3 ? 'warning' : 'danger'
+          }}
+          color="bg-emerald-500"
+        />
+
+        <StatCard
+          icon={Waves}
+          title="Total VOC"
+          value={latestData?.tvoc ?? "-"}
+          unit="ppb"
+          status={{
+            label: (latestData?.tvoc || 0) <= 100 ? 'Clean' : (latestData?.tvoc || 0) <= 300 ? 'Moderate' : 'High',
+            type: (latestData?.tvoc || 0) <= 100 ? 'success' : (latestData?.tvoc || 0) <= 300 ? 'warning' : 'danger'
+          }}
+          color="bg-purple-500"
+        />
+
+        <StatCard
+          icon={Zap}
+          title="Equivalent CO₂"
+          value={latestData?.eco2 ?? "-"}
+          unit="ppm"
+          status={{
+            label: (latestData?.eco2 || 0) <= 600 ? 'Normal' : (latestData?.eco2 || 0) <= 1000 ? 'Elevated' : 'High',
+            type: (latestData?.eco2 || 0) <= 600 ? 'success' : (latestData?.eco2 || 0) <= 1000 ? 'warning' : 'danger'
+          }}
+          color="bg-rose-500"
+        />
+      </div>
+
+      {/* Trend Chart */}
+      {chartData.length > 0 && (
+        <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
+          <h2 className="text-base md:text-lg font-semibold text-gray-800 mb-4 md:mb-6">Air Quality Trends — Last 24 Readings</h2>
+          <ResponsiveContainer width="100%" height={350}>
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis dataKey="time" stroke="#6B7280" style={{ fontSize: '10px' }} />
+              <YAxis
+                yAxisId="left"
+                stroke="#6B7280"
+                style={{ fontSize: '10px' }}
+                label={{ value: 'AQI', angle: -90, position: 'insideLeft', style: { fontSize: '10px' } }}
+              />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                stroke="#6B7280"
+                style={{ fontSize: '10px' }}
+                label={{ value: 'TVOC (ppb) / eCO₂ (ppm)', angle: 90, position: 'insideRight', style: { fontSize: '10px' } }}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'white',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  fontSize: '11px',
+                }}
+              />
+              <Legend wrapperStyle={{ fontSize: '12px' }} />
+              <Line yAxisId="left" type="monotone" dataKey="aqi" stroke="#22c55e" strokeWidth={2} dot={false} name="AQI" />
+              <Line yAxisId="right" type="monotone" dataKey="tvoc" stroke="#a855f7" strokeWidth={2} dot={false} name="TVOC (ppb)" />
+              <Line yAxisId="right" type="monotone" dataKey="eco2" stroke="#ef4444" strokeWidth={2} dot={false} name="eCO₂ (ppm)" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <StatCard
+          icon={Wind}
+          title="Peak AQI"
+          value={stats.maxAqi}
+          color="bg-emerald-50"
+        />
+        <StatCard
+          icon={Waves}
+          title="Avg TVOC"
+          value={stats.avgTvoc}
+          unit="ppb"
+          color="bg-purple-50"
+        />
+        <StatCard
+          icon={Zap}
+          title="Avg eCO₂"
+          value={stats.avgEco2}
+          unit="ppm"
+          color="bg-rose-50"
+        />
+        <StatCard
+          icon={Zap}
+          title="Peak eCO₂"
+          value={stats.maxEco2}
+          unit="ppm"
+          color="bg-rose-100"
+        />
+      </div>
+    </div>
+  );
+}

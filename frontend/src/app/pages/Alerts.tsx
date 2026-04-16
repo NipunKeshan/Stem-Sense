@@ -52,11 +52,27 @@ const allAlerts = [
   },
   {
     id: 7,
-    severity: 'info',
-    category: 'Motion',
-    message: '12 motion events detected today in Zone A.',
+    severity: 'warning',
+    category: 'Air Quality',
+    message: 'AQI reached level 4 (Poor). Ventilation recommended.',
     time: '10 hours ago',
     resolved: false,
+  },
+  {
+    id: 8,
+    severity: 'info',
+    category: 'Light',
+    message: 'Daily Light Integral below target. Consider supplemental lighting.',
+    time: '12 hours ago',
+    resolved: false,
+  },
+  {
+    id: 9,
+    severity: 'critical',
+    category: 'Pump Safety',
+    message: 'Pump blocked — soil moisture at 96%. Safety override active.',
+    time: '14 hours ago',
+    resolved: true,
   },
 ];
 

@@ -12,7 +12,10 @@ const {
   getLux,
   getDli,
   getSoilMoisture,
-  setPumpState
+  setPumpState,
+  togglePump,
+  getPumpState,
+  getSensorStats
 } = require('../controllers/sensorController');
 
 router.route('/')
@@ -21,6 +24,9 @@ router.route('/')
 
 router.route('/latest')
   .get(getLatestSensorData);
+
+router.route('/stats')
+  .get(getSensorStats);
 
 // Individual sensor endpoints
 router.route('/temperature')
@@ -47,8 +53,13 @@ router.route('/dli')
 router.route('/soil-moisture')
   .get(getSoilMoisture);
 
-// Pump state endpoint
+// Pump state endpoint (legacy)
 router.route('/pump-state')
   .post(setPumpState);
+
+// Pump control endpoint (frontend)
+router.route('/pump')
+  .get(getPumpState)
+  .post(togglePump);
 
 module.exports = router;
