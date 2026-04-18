@@ -1,4 +1,6 @@
 const SensorData = require('../models/SensorData');
+//For ML decision
+const { getDecision } = require("../services/irrigationService");
 
 const roundTo = (val, decimals) => {
   if (val === undefined || val === null) return val;
@@ -49,7 +51,7 @@ const addSensorData = async (req, res) => {
     } = req.body;
 
     // Create sensor record
-    const sensorData = await SensorData.create({
+    const sensorData = await SensorData({
       device_id,
       temperature,
       humidity,
@@ -63,10 +65,43 @@ const addSensorData = async (req, res) => {
       manual_override: manual_override || 0
     });
 
+    // 🔥 Extract hour from timestamp
+    const hour = new Date(sensorData.timestamp).getHours();
+
+    // 🔥 ONLY APPLY AUTO LOGIC IF NOT MANUAL
+    let finalPumpState = pump_state;
+    let reason = "Manual control";
+
+    if (!manual_override) {
+      const decision = await getDecision({
+        temperature,
+        humidity,
+        soil_moisture,
+        lux,
+        air_quality: aqi,
+        tvoc,
+        eco2,
+        aqi,
+        hour
+      });
+
+      finalPumpState = decision.irrigation;
+      reason = decision.reason;
+      sensorData.pump_state = finalPumpState;
+    }
+
+    // ✅ Save to DB
+    await sensorData.save();
+
+
     res.status(201).json({
       success: true,
-      data: sensorData
+      data: sensorData,
+      pump: finalPumpState,
+      reason: reason,
+      message: manual_override ? "Manual control" : "Auto ML decision"
     });
+
   } catch (error) {
     console.error(error);
     // Determine whether mongoose validation failed
@@ -357,3 +392,4 @@ module.exports = {
   getPumpState,
   getSensorStats
 };
+
