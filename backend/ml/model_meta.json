@@ -1,0 +1,145 @@
+{
+  "model_file": "pump_model.onnx",
+  "raw_features": [
+    "temperature",
+    "humidity",
+    "tvoc",
+    "eco2",
+    "aqi",
+    "lux",
+    "dli",
+    "soil_moisture"
+  ],
+  "engineered_features": [
+    "vpd",
+    "temp_soil_ratio",
+    "heat_load"
+  ],
+  "all_features": [
+    "temperature",
+    "humidity",
+    "tvoc",
+    "eco2",
+    "aqi",
+    "lux",
+    "dli",
+    "soil_moisture",
+    "vpd",
+    "temp_soil_ratio",
+    "heat_load"
+  ],
+  "target": "pump_state",
+  "classes": [
+    0,
+    1
+  ],
+  "class_labels": {
+    "0": "PUMP_OFF",
+    "1": "PUMP_ON"
+  },
+  "hyperparameters": {
+    "n_estimators": 200,
+    "max_depth": 6,
+    "min_samples_leaf": 1,
+    "class_weight": "balanced"
+  },
+  "performance": {
+    "test_accuracy": 0.7,
+    "roc_auc": 0.716184,
+    "cv_mean": 0.698,
+    "cv_std": 0.024819
+  },
+  "feature_importance": {
+    "temp_soil_ratio": 0.199904,
+    "temperature": 0.184033,
+    "soil_moisture": 0.116422,
+    "aqi": 0.096336,
+    "humidity": 0.078138,
+    "vpd": 0.07642,
+    "eco2": 0.068191,
+    "tvoc": 0.055775,
+    "heat_load": 0.047543,
+    "lux": 0.040011,
+    "dli": 0.037226
+  },
+  "feature_stats": {
+    "temperature": {
+      "min": 15.12223098,
+      "max": 34.9637812,
+      "mean": 25.16391249122,
+      "std": 5.746169448482673
+    },
+    "humidity": {
+      "min": 40.10841488,
+      "max": 84.94599073,
+      "mean": 61.48692928556,
+      "std": 13.06370040453215
+    },
+    "tvoc": {
+      "min": 100.0355205,
+      "max": 249.8773511,
+      "mean": 176.29200212760003,
+      "std": 43.95482276453118
+    },
+    "eco2": {
+      "min": 400.1074879,
+      "max": 449.7583452,
+      "mean": 425.07476424439994,
+      "std": 13.970803905815265
+    },
+    "aqi": {
+      "min": 20.06277215,
+      "max": 79.83004323,
+      "mean": 51.20035033546,
+      "std": 17.461426497707635
+    },
+    "lux": {
+      "min": 0.001873937,
+      "max": 1496.763103,
+      "mean": 719.1467309544458,
+      "std": 431.32634828771035
+    },
+    "dli": {
+      "min": 7.5e-06,
+      "max": 5.987052414,
+      "mean": 2.876586923862,
+      "std": 1.7253053932012148
+    },
+    "soil_moisture": {
+      "min": 30.13948086,
+      "max": 79.98164081,
+      "mean": 54.723306465760004,
+      "std": 14.36039015132966
+    },
+    "vpd": {
+      "min": 2.5665284033386553,
+      "max": 20.284124331951514,
+      "mean": 9.688731005558253,
+      "std": 4.014968357107159
+    },
+    "temp_soil_ratio": {
+      "min": 0.20324709184170917,
+      "max": 1.110348828300196,
+      "mean": 0.49473597872821123,
+      "std": 0.1820041073806315
+    },
+    "heat_load": {
+      "min": 4.453324464816328e-06,
+      "max": 17.054243395779913,
+      "mean": 4.532799040710058,
+      "std": 3.4090528106612443
+    }
+  },
+  "onnx_meta": {
+    "input_name": "float_input",
+    "label_name": "label",
+    "prob_name": "probabilities",
+    "opset": 12,
+    "size_kb": 450.21
+  },
+  "feature_engineering": {
+    "vpd": "temperature * (1 - humidity / 100)",
+    "temp_soil_ratio": "temperature / (soil_moisture + 0.001)",
+    "heat_load": "temperature * (1 - humidity / 100) * (lux / 1500)"
+  }
+}

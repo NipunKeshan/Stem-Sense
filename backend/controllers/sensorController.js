@@ -1,4 +1,5 @@
 const SensorData = require('../models/SensorData');
+const { getPumpDecision } = require("../ml/inferenceService");
 
 const roundTo = (val, decimals) => {
   if (val === undefined || val === null) return val;
@@ -45,8 +46,32 @@ const addSensorData = async (req, res) => {
       dli,
       soil_moisture,
       pump_state,
-      manual_override
+      manual_override = 0
     } = req.body;
+
+    let finalPumpState = pump_state ?? 0;   // fallback if device omits it
+
+    if (Number(manual_override) === 1) {
+          // Hardware override is active — respect device pump_state, skip ML
+          console.log(`[ML] manual_override=1 on ${device_id} — skipping inference`);
+        } else {
+          // Run the ONNX model
+          try {
+            const { pump_state: mlDecision, confidence } = await getPumpDecision({
+              temperature, humidity, tvoc, eco2, aqi, lux, dli, soil_moisture,
+            });
+            finalPumpState = mlDecision;
+            console.log(
+              `[ML] ${device_id} → pump=${mlDecision === 1 ? "ON" : "OFF"}  confidence=${(confidence * 100).toFixed(1)}%`
+            );
+          } catch (mlErr) {
+            // ML failure must NEVER break the data pipeline
+            // Fall back to the device-reported pump_state and log the error
+            console.error(`[ML] Inference error for ${device_id}:`, mlErr.message);
+            finalPumpState = pump_state ?? 0;
+            console.log(`[ML] Falling back to device pump_state=${finalPumpState} for ${device_id}`);
+          }
+        }
 
     // Create sensor record
     const sensorData = await SensorData.create({
@@ -59,7 +84,7 @@ const addSensorData = async (req, res) => {
       lux,
       dli,
       soil_moisture,
-      pump_state,
+      pump_state:  finalPumpState, 
       manual_override: manual_override || 0
     });
 
