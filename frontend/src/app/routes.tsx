@@ -9,6 +9,7 @@ import SystemHealth from "./pages/SystemHealth";
 import Alerts from "./pages/Alerts";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
+import Monitoring from "./pages/Monitoring";
 import AdminPanel from "./pages/AdminPanel";
 import { useAuth } from "./context/AuthContext";
 
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
       { path: "system-health", Component: SystemHealth },
       { path: "alerts", Component: Alerts },
       { path: "settings", Component: Settings },
+      { path: "monitoring", Component: Monitoring }
     ],
   },
 ]);

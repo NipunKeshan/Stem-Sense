@@ -15,6 +15,7 @@ const {
   setPumpState,
   togglePump,
   getPumpState,
+  getTodayPumpOnData,
   getSensorStats
 } = require('../controllers/sensorController');
 
@@ -58,6 +59,9 @@ router.route('/pump-state')
   .post(setPumpState);
 
 // Pump control endpoint (frontend)
+router.route('/pump/today')
+  .get(getTodayPumpOnData);
+
 router.route('/pump')
   .get(getPumpState)
   .post(togglePump);

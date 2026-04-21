@@ -129,6 +129,19 @@ Routes are implemented in `backend/routes`.
 - GET `/api/sensors/pump` — returns desired (in-memory) pump state and latest actual pump state.
 - POST `/api/sensors/pump` — set desired pump state `{ "pump": 0|1 }`. This endpoint will reject remote changes if the latest telemetry has `manual_override === 1` (hardware override lock).
 
+- GET `/api/sensors/pump/today` — returns all telemetry records for *today* (Sri Lanka local day, timezone `Asia/Colombo`) where `pump_state` is `1`. Response includes only `pump_state` and a `timestamp` formatted in Sri Lanka local time (YYYY-MM-DD HH:MM:SS). Example response:
+
+```json
+{
+	"success": true,
+	"count": 2,
+	"data": [
+		{ "pump_state": 1, "timestamp": "2026-04-21 14:12:33" },
+		{ "pump_state": 1, "timestamp": "2026-04-21 08:05:01" }
+	]
+}
+```
+
 ### Auth endpoints (`/api/auth`)
 
 - POST `/api/auth/login` — body `{ username, password }`. Returns JWT `token` plus user info.

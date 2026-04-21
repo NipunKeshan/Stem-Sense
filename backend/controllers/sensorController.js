@@ -307,6 +307,50 @@ const getPumpState = async (req, res) => {
   }
 };
 
+// @desc    Get today's pump ON readings (Sri Lanka local day)
+// @route   GET /api/sensors/pump/today
+// @access  Public
+const getTodayPumpOnData = async (req, res) => {
+  try {
+    const tz = 'Asia/Colombo';
+    const locale = 'en-CA'; // yields YYYY-MM-DD format
+    const now = new Date();
+    const dtf = new Intl.DateTimeFormat(locale, { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' });
+    const [year, month, day] = dtf.format(now).split('-');
+
+    const startISO = `${year}-${month}-${day}T00:00:00+05:30`;
+    const endISO = `${year}-${month}-${day}T23:59:59.999+05:30`;
+
+    const start = new Date(startISO);
+    const end = new Date(endISO);
+
+    const docs = await SensorData.find({
+      pump_state: 1,
+      timestamp: { $gte: start, $lte: end }
+    }).sort({ timestamp: -1 }).select('pump_state timestamp -_id');
+
+    const data = docs.map(d => {
+      const sriTime = new Date(d.timestamp).toLocaleString('en-CA', {
+        timeZone: tz,
+        hour12: false,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      }).replace(',', '').trim();
+
+      return { pump_state: d.pump_state, timestamp: sriTime };
+    });
+
+    res.status(200).json({ success: true, count: data.length, data });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, error: 'Server Error', message: error.message });
+  }
+};
+
 // @desc    Get sensor statistics (Last 24h)
 // @route   GET /api/sensors/stats
 // @access  Public
@@ -380,5 +424,6 @@ module.exports = {
   setPumpState,
   togglePump,
   getPumpState,
+  getTodayPumpOnData,
   getSensorStats
 };

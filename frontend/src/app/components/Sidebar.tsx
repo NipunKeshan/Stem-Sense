@@ -10,12 +10,14 @@ import {
   Bell, 
   Settings,
   X,
+  ListChecks,
   Users,
   LogOut
 } from 'lucide-react';
 
 const menuItems = [
   { path: '/', label: 'Overview', icon: LayoutDashboard, permission: 'Overview' },
+  { path: '/monitoring', label: 'Monitoring', icon: ListChecks, permission: 'Monitoring' },
   { path: '/soil-moisture', label: 'Soil Moisture', icon: Droplets, permission: 'Soil Moisture' },
   { path: '/temperature', label: 'Temperature & Humidity', icon: ThermometerSun, permission: 'Temperature' },
   { path: '/air-quality', label: 'Air Quality', icon: Wind, permission: 'Air Quality' },
@@ -97,10 +99,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             );
           })}
         </nav>
-        <div className="p-4 border-t border-green-700">
+        <div className="px-4 py-2 border-t border-green-700">
           <button 
             onClick={() => logout()}
-            className="flex items-center gap-3 px-2 py-2 w-full text-left transition-colors hover:bg-green-800 rounded"
+            className="flex items-center gap-3 w-full text-left transition-colors hover:bg-green-800 rounded"
           >
             <LogOut className="w-5 h-5" />
             <span>Logout</span>
