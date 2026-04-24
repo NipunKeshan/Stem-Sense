@@ -11,7 +11,8 @@ import {
   Settings,
   X,
   Users,
-  LogOut
+  LogOut,
+  Leaf
 } from 'lucide-react';
 
 const menuItems = [
@@ -55,15 +56,21 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className="p-6 border-b border-green-700 flex items-center justify-between">
-          <h1 className="text-xl font-semibold">StemSense</h1>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm shadow-sm">
+              <Leaf className="w-5 h-5 text-white" />
+            </div>
+            <h1 className="text-xl font-bold tracking-tight">StemSense</h1>
+          </div>
           <button 
             onClick={onClose}
+            aria-label="Close sidebar navigation"
             className="lg:hidden p-1 hover:bg-green-700 rounded"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        <nav className="flex-1 py-4 overflow-y-auto">
+        <nav aria-label="Main Navigation" className="flex-1 py-4 overflow-y-auto">
           {user?.role === 'admin' && (
             <Link
               to="/admin"

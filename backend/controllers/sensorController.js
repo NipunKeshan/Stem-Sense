@@ -1,5 +1,6 @@
 const SensorData = require('../models/SensorData');
 const PumpCommand = require('../models/PumpCommand');
+const SystemAlert = require('../models/Alert');
 
 const roundTo = (val, decimals) => {
   if (val === undefined || val === null) return val;
@@ -11,7 +12,32 @@ const roundTo = (val, decimals) => {
 // @access  Public
 const getSensorData = async (req, res) => {
   try {
-    const data = await SensorData.find().sort({ captured_at: -1 });
+    const timeRange = req.query.timeRange || '30m';
+    const query = {};
+    const now = new Date();
+
+    if (timeRange === '30m') {
+      const cutoff = new Date(now.getTime() - 30 * 60 * 1000);
+      query.captured_at = { $gte: cutoff };
+    } else if (timeRange === '1h') {
+      const cutoff = new Date(now.getTime() - 1 * 60 * 60 * 1000);
+      query.captured_at = { $gte: cutoff };
+    } else if (timeRange === '6h') {
+      const cutoff = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+      query.captured_at = { $gte: cutoff };
+    } else if (timeRange === '1d' || timeRange === '24h') { // 24h fallback
+      const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      query.captured_at = { $gte: cutoff };
+    } else if (timeRange === '7d') {
+      const cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      query.captured_at = { $gte: cutoff };
+    }
+    // If 'all', we don't set a date filter, but we will limit it below
+
+    const data = await SensorData.find(query)
+      .sort({ captured_at: -1 })
+      .limit(timeRange === 'all' ? 2000 : 0); // Hard limit 2000 for 'all' to prevent crashing
+
     const command = await PumpCommand.findOne({ _id: 'global' });
     res.status(200).json({ 
       success: true, 
@@ -266,8 +292,15 @@ const togglePump = async (req, res) => {
         pump: pump, 
         updated_at: new Date() 
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
+
+    // Create a dynamic alert for manual trigger
+    await SystemAlert.create({
+      severity: 'info',
+      message: `Manual Irrigation ${pump === 1 ? 'Started' : 'Stopped'}`,
+      type: 'manual'
+    });
 
     res.status(200).json({
       success: true,
@@ -357,6 +390,80 @@ const getSensorStats = async (req, res) => {
   }
 };
 
+// @desc    Get all alerts with pagination and filtering
+// @route   GET /api/sensors/alerts
+// @access  Public
+const getAlerts = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 20;
+    const filterType = req.query.filter || 'all';
+    const dateRange = req.query.dateFilter || 'all';
+
+    const baseQuery = {};
+
+    // Apply date filter to baseQuery (used for both data and global counts)
+    const now = new Date();
+    if (dateRange === 'today') {
+      const startOfDay = new Date(now.setHours(0, 0, 0, 0));
+      baseQuery.timestamp = { $gte: startOfDay };
+    } else if (dateRange === 'last7days') {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(now.getDate() - 7);
+      baseQuery.timestamp = { $gte: sevenDaysAgo };
+    } else if (dateRange === 'last30days') {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(now.getDate() - 30);
+      baseQuery.timestamp = { $gte: thirtyDaysAgo };
+    }
+
+    // Build specific query for fetching paginated data
+    const query = { ...baseQuery };
+    
+    // Apply type/severity filter
+    if (filterType !== 'all') {
+      if (['critical', 'warning'].includes(filterType)) {
+        query.severity = filterType;
+      } else if (['manual', 'auto'].includes(filterType)) {
+        query.type = filterType;
+      }
+    }
+
+    const startIndex = (page - 1) * limit;
+
+    // Get counts for the top dashboard cards based on the date range (ignoring type filter)
+    const [criticalCount, warningCount, manualCount, autoCount, total] = await Promise.all([
+      SystemAlert.countDocuments({ ...baseQuery, severity: 'critical' }),
+      SystemAlert.countDocuments({ ...baseQuery, severity: 'warning' }),
+      SystemAlert.countDocuments({ ...baseQuery, type: 'manual' }),
+      SystemAlert.countDocuments({ ...baseQuery, type: 'auto' }),
+      SystemAlert.countDocuments(query)
+    ]);
+
+    const alerts = await SystemAlert.find(query)
+      .sort({ timestamp: -1 })
+      .skip(startIndex)
+      .limit(limit);
+
+    res.status(200).json({ 
+      success: true, 
+      count: alerts.length, 
+      total,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      counts: {
+        critical: criticalCount,
+        warning: warningCount,
+        manual: manualCount,
+        auto: autoCount
+      },
+      data: alerts 
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Server Error', message: error.message });
+  }
+};
+
 module.exports = {
   getSensorData,
   addSensorData,
@@ -369,8 +476,8 @@ module.exports = {
   getLux,
   getDli,
   getSoilMoisture,
-  setPumpState,
   togglePump,
   getPumpState,
-  getSensorStats
+  getSensorStats,
+  getAlerts
 };
