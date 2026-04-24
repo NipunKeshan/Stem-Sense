@@ -5,7 +5,6 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
 import StatCard from '../components/StatCard';
-import AlertsPanel from '../components/AlertsPanel';
 import IrrigationControl from '../components/IrrigationControl';
 
 const SOIL_SAFETY_THRESHOLD = 95;
@@ -176,14 +175,14 @@ export default function Overview() {
         </ResponsiveContainer>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Pump Control */}
-        <div className="lg:col-span-1">
+        <div>
           <IrrigationControl />
         </div>
 
         {/* System Status */}
-        <div className="bg-white rounded-lg shadow-md p-4 md:p-6 lg:col-span-1">
+        <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
           <h3 className="font-semibold text-gray-800 mb-3 md:mb-4 text-sm md:text-base">System Status</h3>
           <div className="space-y-2 md:space-y-3">
             <div className="flex items-center justify-between">
@@ -213,11 +212,6 @@ export default function Overview() {
               <span className="text-xs md:text-sm font-medium text-green-600">● Connected</span>
             </div>
           </div>
-        </div>
-
-        {/* Alerts Panel */}
-        <div className="lg:col-span-1">
-          <AlertsPanel />
         </div>
       </div>
     </div>
