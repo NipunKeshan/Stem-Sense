@@ -38,7 +38,7 @@ export default function AirQuality() {
         setError('');
         
         // Fetch chart data
-        const resData = await axios.get('http://localhost:5000/api/sensors');
+        const resData = await axios.get('/api/sensors');
         if (resData.data.success && resData.data.data && resData.data.data.length > 0) {
           const allData = resData.data.data;
           setLatestData(allData[0]);
@@ -59,7 +59,7 @@ export default function AirQuality() {
         }
 
         // Fetch stats from backend
-        const resStats = await axios.get('http://localhost:5000/api/sensors/stats');
+        const resStats = await axios.get('/api/sensors/stats');
         if (resStats.data.success) {
           const s = resStats.data.data;
           setStats({
@@ -97,7 +97,7 @@ export default function AirQuality() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center text-red-600">
           <p className="font-semibold">{error}</p>
-          <p className="text-sm mt-2">Ensure the backend is running at http://localhost:5000</p>
+          <p className="text-sm mt-2">Ensure the backend is running at </p>
         </div>
       </div>
     );
@@ -202,28 +202,28 @@ export default function AirQuality() {
           icon={Wind}
           title="Peak AQI"
           value={stats.maxAqi}
-          color="bg-emerald-50"
+          color="bg-emerald-500"
         />
         <StatCard
           icon={Waves}
           title="Avg TVOC"
           value={stats.avgTvoc}
           unit="ppb"
-          color="bg-purple-50"
+          color="bg-purple-500"
         />
         <StatCard
           icon={Zap}
           title="Avg eCO₂"
           value={stats.avgEco2}
           unit="ppm"
-          color="bg-rose-50"
+          color="bg-rose-500"
         />
         <StatCard
           icon={Zap}
           title="Peak eCO₂"
           value={stats.maxEco2}
           unit="ppm"
-          color="bg-rose-100"
+          color="bg-rose-600"
         />
       </div>
     </div>

@@ -52,7 +52,7 @@ export default function AdminPanel() {
 
   const fetchUsers = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/auth/users');
+      const res = await axios.get('/api/auth/users');
       setUsers(res.data);
     } catch (err) {
       console.error('Error fetching users', err);
@@ -71,7 +71,7 @@ export default function AdminPanel() {
     setLoading(true);
     
     try {
-      await axios.post('http://localhost:5000/api/auth/users', {
+      await axios.post('/api/auth/users', {
         username: newUsername,
         password: newPassword,
         permissions: []
@@ -99,7 +99,7 @@ export default function AdminPanel() {
     }
 
     try {
-      await axios.put(`http://localhost:5000/api/auth/users/${userId}/permissions`, {
+      await axios.put(`/api/auth/users/${userId}/permissions`, {
         permissions: updatedPermissions
       });
       
