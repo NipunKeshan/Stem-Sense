@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { ThermometerSun, Droplets, Download, Loader, Wifi } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Brush, ReferenceLine, ReferenceArea } from 'recharts';
 import axios from 'axios';
-
+import { downloadCSV } from '../../utils/export';
 import StatCard from '../components/StatCard';
 
 // Comfort Level Indicator
@@ -44,7 +44,7 @@ const ComfortLevelCard = ({ temperature, humidity }: { temperature: number; humi
   );
 };
 
-type TimeRange = '6h' | '24h' | '7d';
+type TimeRange = '30m' | '1h' | '6h' | '1d' | '7d';
 
 export default function Temperature() {
   const [chartData, setChartData] = useState<any[]>([]);
@@ -53,29 +53,10 @@ export default function Temperature() {
   const [stats, setStats] = useState<any>({ maxTemp: 0, minTemp: 0, avgHumidity: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [timeRange, setTimeRange] = useState<TimeRange>('24h');
+  const [timeRange, setTimeRange] = useState<TimeRange>('30m');
   
   const downloadReport = () => {
-    if (!chartData.length) {
-      alert('No data available to download');
-      return;
-    }
-
-    const headers = ['Time', 'Temperature (°C)', 'Humidity (%)'];
-    const rows = chartData.map((d) => [d.time, d.temp, d.humidity]);
-
-    let csvContent = 'data:text/csv;charset=utf-8,' + headers.join(',') + '\n';
-    rows.forEach((row) => {
-      csvContent += row.join(',') + '\n';
-    });
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `sensor-report-${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCSV(chartData, `stemsense_temperature_${timeRange}`);
   };
 
   useEffect(() => {
@@ -84,24 +65,15 @@ export default function Temperature() {
         setLoading(true);
         setError('');
         
-        const resData = await axios.get('/api/sensors');
+        const resData = await axios.get('/api/sensors', { params: { timeRange } });
         if (resData.data.success && resData.data.data && resData.data.data.length > 0) {
           const allData = resData.data.data;
           setPreviousData(latestData);
           setLatestData(allData[0]);
           
-          // Apply time-range filter
+          // Data is already filtered by backend
           const reversed = [...allData].reverse();
-          const now = new Date();
-          let filtered = reversed;
-          if (timeRange === '6h') {
-            const cutoff = new Date(now.getTime() - 6 * 60 * 60 * 1000);
-            filtered = reversed.filter((item: any) => new Date(item.timestamp) >= cutoff);
-          } else if (timeRange === '24h') {
-            filtered = reversed.slice(-24);
-          } else {
-            filtered = reversed.slice(-168);
-          }
+          const filtered = reversed;
 
           const processedData = filtered.map((item: any) => {
             const d = new Date(item.timestamp);
@@ -207,7 +179,7 @@ export default function Temperature() {
           <h2 className="text-base md:text-lg font-semibold text-gray-800">Environmental Trends</h2>
           <div className="flex items-center gap-2">
             {/* Time Range Filter */}
-            {(['6h', '24h', '7d'] as TimeRange[]).map(range => (
+            {(['30m', '1h', '6h', '1d', '7d'] as TimeRange[]).map(range => (
               <button
                 key={range}
                 onClick={() => setTimeRange(range)}
@@ -217,7 +189,7 @@ export default function Temperature() {
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                {range === '6h' ? '6 Hours' : range === '24h' ? '24 Hours' : '7 Days'}
+                {range === '30m' ? '30 Min' : range === '1h' ? '1 Hour' : range === '6h' ? '6 Hours' : range === '1d' ? '1 Day' : '7 Days'}
               </button>
             ))}
             <button

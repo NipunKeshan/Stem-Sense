@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Wind, Waves, Zap, Loader, AlertTriangle, Calendar } from 'lucide-react';
+import { Wind, Waves, Zap, Loader, AlertTriangle, Calendar, Download } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Brush, ReferenceLine } from 'recharts';
 import axios from 'axios';
 import StatCard from '../components/StatCard';
+import { downloadCSV } from '../../utils/export';
 
-type TimeRange = '6h' | '24h' | 'all';
+type TimeRange = '30m' | '1h' | '6h' | '1d' | '7d';
 
 const getAQILabel = (aqi: number) => {
   if (aqi <= 1) return { label: 'Excellent', color: '#22c55e', bg: 'bg-green-50 text-green-700' };
@@ -32,7 +33,7 @@ export default function AirQuality() {
   const [stats, setStats] = useState<any>({ maxAqi: 0, avgTvoc: 0, avgEco2: 0, maxEco2: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [timeRange, setTimeRange] = useState<TimeRange>('24h');
+  const [timeRange, setTimeRange] = useState<TimeRange>('30m');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -41,20 +42,13 @@ export default function AirQuality() {
         setError('');
         
         // Fetch chart data
-        const resData = await axios.get('/api/sensors');
+        const resData = await axios.get('/api/sensors', { params: { timeRange } });
         if (resData.data.success && resData.data.data && resData.data.data.length > 0) {
           const allData = resData.data.data;
           setLatestData(allData[0]);
 
           const reversed = [...allData].reverse();
-          const now = new Date();
-          let filtered = reversed;
-          if (timeRange === '6h') {
-            const cutoff = new Date(now.getTime() - 6 * 60 * 60 * 1000);
-            filtered = reversed.filter((item: any) => new Date(item.timestamp) >= cutoff);
-          } else if (timeRange === '24h') {
-            filtered = reversed.slice(-24);
-          }
+          const filtered = reversed;
 
           const processedData = filtered.map((item: any) => {
             const d = new Date(item.timestamp);
@@ -173,8 +167,15 @@ export default function AirQuality() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 md:mb-6 gap-3">
             <h2 className="text-base md:text-lg font-semibold text-gray-800">Air Quality Trends</h2>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => downloadCSV(chartData, `stemsense_airquality_${timeRange}`)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors mr-2"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Export
+              </button>
               <Calendar className="w-4 h-4 text-gray-400" />
-              {(['6h', '24h', 'all'] as TimeRange[]).map(range => (
+              {(['30m', '1h', '6h', '1d', '7d'] as TimeRange[]).map(range => (
                 <button
                   key={range}
                   onClick={() => setTimeRange(range)}
@@ -184,7 +185,7 @@ export default function AirQuality() {
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
-                  {range === '6h' ? '6 Hours' : range === '24h' ? '24 Hours' : 'All Data'}
+                  {range === '30m' ? '30 Min' : range === '1h' ? '1 Hour' : range === '6h' ? '6 Hours' : range === '1d' ? '1 Day' : '7 Days'}
                 </button>
               ))}
             </div>

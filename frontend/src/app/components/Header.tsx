@@ -35,6 +35,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [alerts, setAlerts] = useState<any[]>([]);
+  const [isConnected, setIsConnected] = useState(true);
   const [lastReadAt, setLastReadAt] = useState<string | null>(
     () => localStorage.getItem(LAST_READ_KEY)
   );
@@ -73,16 +74,32 @@ export default function Header({ onMenuClick }: HeaderProps) {
           setAlerts(res.data.data);
         }
       } catch (err) {
-        // silently fail — header shouldn't break the page
+        // silently fail
+      }
+    };
+
+    const fetchConnection = async () => {
+      try {
+        const res = await axios.get('/api/sensors/latest');
+        if (res.data.success && res.data.data) {
+          const diffSec = (Date.now() - new Date(res.data.data.timestamp).getTime()) / 1000;
+          setIsConnected(diffSec < 30);
+        }
+      } catch (err) {
+        setIsConnected(false);
       }
     };
 
     fetchAlerts();
+    fetchConnection();
+    
     const alertInterval = setInterval(fetchAlerts, 10000);
+    const connInterval = setInterval(fetchConnection, 10000);
 
     return () => {
       clearInterval(timer);
       clearInterval(alertInterval);
+      clearInterval(connInterval);
     };
   }, []);
 
@@ -139,8 +156,10 @@ export default function Header({ onMenuClick }: HeaderProps) {
         <div className="flex items-center gap-3 md:gap-6">
           <div className="text-right hidden md:block">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-sm font-medium text-green-600">Connected</span>
+              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+              <span className={`text-sm font-medium ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
+                {isConnected ? 'Connected' : 'Offline'}
+              </span>
             </div>
             <p className="text-xs text-gray-500">
               Last updated: {currentTime.toLocaleTimeString()}

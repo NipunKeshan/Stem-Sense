@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Droplets, ThermometerSun, Wind, Sun, AlertTriangle, Calendar } from 'lucide-react';
+import { Droplets, ThermometerSun, Wind, Sun, AlertTriangle, Calendar, Download } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Brush, ReferenceLine } from 'recharts';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { downloadCSV } from '../../utils/export';
 
 import StatCard from '../components/StatCard';
 import IrrigationControl from '../components/IrrigationControl';
@@ -27,7 +28,7 @@ const SOIL_SAFETY_THRESHOLD = 95;
  *   - Real-time system status with computed sensor health
  */
 
-type TimeRange = '1h' | '6h' | '24h' | 'all';
+type TimeRange = '30m' | '1h' | '6h' | '1d' | '7d';
 
 export default function Overview() {
   const { user } = useAuth();
@@ -35,12 +36,13 @@ export default function Overview() {
   const [latestData, setLatestData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [resDataDesired, setResDataDesired] = useState<number | null>(null);
-  const [timeRange, setTimeRange] = useState<TimeRange>('24h');
+  const [timeRange, setTimeRange] = useState<TimeRange>('30m');
   const [visibleSeries, setVisibleSeries] = useState({
     moisture: true,
     temp: true,
     aqi: false,
     humidity: false,
+    lux: false,
   });
 
   const isSoilSaturated = (latestData?.soil_moisture || 0) >= SOIL_SAFETY_THRESHOLD;
@@ -49,7 +51,7 @@ export default function Overview() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await axios.get('/api/sensors');
+        const res = await axios.get('/api/sensors', { params: { timeRange } });
         if (res.data.success) {
           const rawData = res.data.data;
           
@@ -58,19 +60,8 @@ export default function Overview() {
           }
 
           const reversed = [...rawData].reverse();
-          
-          // Apply time range filter
-          const now = new Date();
-          let filtered = reversed;
-          if (timeRange === '1h') {
-            const cutoff = new Date(now.getTime() - 1 * 60 * 60 * 1000);
-            filtered = reversed.filter((item: any) => new Date(item.timestamp) >= cutoff);
-          } else if (timeRange === '6h') {
-            const cutoff = new Date(now.getTime() - 6 * 60 * 60 * 1000);
-            filtered = reversed.filter((item: any) => new Date(item.timestamp) >= cutoff);
-          } else if (timeRange === '24h') {
-            filtered = reversed.slice(-100);
-          }
+          // Backend now handles the timeRange filtering, we just map it for the chart
+          const filtered = reversed;
 
           const chartData = filtered.map((item: any) => {
             const d = new Date(item.timestamp);
@@ -80,6 +71,7 @@ export default function Overview() {
               temp: item.temperature || 0,
               aqi: item.aqi || 0,
               humidity: item.humidity || 0,
+              lux: item.lux || 0,
             };
           });
           setData(chartData);
@@ -127,7 +119,7 @@ export default function Overview() {
   const getSensorHealth = () => {
     if (!latestData?.timestamp) return false;
     const diffSec = (Date.now() - new Date(latestData.timestamp).getTime()) / 1000;
-    return diffSec < 120; // Consider "active" if data is < 2 min old
+    return diffSec < 30; // Consider "active" if data is < 30 seconds old
   };
   const isRecentData = getSensorHealth();
 
@@ -195,8 +187,15 @@ export default function Overview() {
           
           {/* Time Range Filter */}
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => downloadCSV(data, `stemsense_overview_${timeRange}`)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors mr-2"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export
+            </button>
             <Calendar className="w-4 h-4 text-gray-400" />
-            {(['1h', '6h', '24h', 'all'] as TimeRange[]).map(range => (
+            {(['30m', '1h', '6h', '1d', '7d'] as TimeRange[]).map(range => (
               <button
                 key={range}
                 onClick={() => setTimeRange(range)}
@@ -206,7 +205,7 @@ export default function Overview() {
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                {range === '1h' ? '1 Hour' : range === '6h' ? '6 Hours' : range === '24h' ? '24 Hours' : 'All Data'}
+                {range === '30m' ? '30 Min' : range === '1h' ? '1 Hour' : range === '6h' ? '6 Hours' : range === '1d' ? '1 Day' : '7 Days'}
               </button>
             ))}
           </div>
@@ -219,6 +218,7 @@ export default function Overview() {
             { key: 'temp' as const, label: 'Temperature °C', color: '#F97316' },
             { key: 'aqi' as const, label: 'Air Quality', color: '#10B981' },
             { key: 'humidity' as const, label: 'Humidity %', color: '#3B82F6' },
+            { key: 'lux' as const, label: 'Light (lux)', color: '#EAB308' },
           ].map(series => (
             <button
               key={series.key}
@@ -256,6 +256,10 @@ export default function Overview() {
               <linearGradient id="colorHumidity" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.2}/>
                 <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+              </linearGradient>
+              <linearGradient id="colorLux" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#EAB308" stopOpacity={0.2}/>
+                <stop offset="95%" stopColor="#EAB308" stopOpacity={0}/>
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.5} />
@@ -317,6 +321,17 @@ export default function Overview() {
                 fillOpacity={1} 
                 fill="url(#colorHumidity)"
                 name="Humidity %"
+              />
+            )}
+            {visibleSeries.lux && (
+              <Area 
+                type="monotone" 
+                dataKey="lux" 
+                stroke="#EAB308" 
+                strokeWidth={2}
+                fillOpacity={1} 
+                fill="url(#colorLux)"
+                name="Light (lux)"
               />
             )}
             {/* Brush for interactive range selection (brushing & linking) */}

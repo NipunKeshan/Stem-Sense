@@ -6,25 +6,47 @@ export default function Alerts() {
   const [alerts, setAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [counts, setCounts] = useState({ critical: 0, warning: 0, manual: 0, auto: 0 });
+
+  const fetchAlerts = async (isAutoRefresh = false) => {
+    if (isAutoRefresh && page > 1) return; // Disable auto-refresh past page 1
+    
+    try {
+      const res = await axios.get('/api/sensors/alerts', {
+        params: {
+          page,
+          limit: 20,
+          filter,
+          dateFilter
+        }
+      });
+      if (res.data.success) {
+        setAlerts(res.data.data);
+        setTotalPages(res.data.totalPages);
+        setTotalCount(res.data.total);
+        if (res.data.counts) {
+          setCounts(res.data.counts);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching alerts', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchAlerts = async () => {
-      try {
-        const res = await axios.get('/api/sensors/alerts');
-        if (res.data.success) {
-          setAlerts(res.data.data);
-        }
-      } catch (err) {
-        console.error('Error fetching alerts', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+    fetchAlerts(false);
+  }, [page, filter, dateFilter]);
 
-    fetchAlerts();
-    const interval = setInterval(fetchAlerts, 10000);
+  useEffect(() => {
+    const interval = setInterval(() => fetchAlerts(true), 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [page, filter, dateFilter]);
 
   const getSeverityIcon = (severity: string, type: string) => {
     if (severity === 'critical') return <AlertTriangle className="w-4 h-4" />;
@@ -62,15 +84,13 @@ export default function Alerts() {
            d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const filteredAlerts = alerts.filter(alert => {
-    if (filter === 'all') return true;
-    return alert.severity === filter || alert.type === filter;
-  });
+  // We don't filter in frontend anymore, we just use the alerts directly
+  const filteredAlerts = alerts;
 
-  const criticalCount = alerts.filter(a => a.severity === 'critical').length;
-  const warningCount = alerts.filter(a => a.severity === 'warning').length;
-  const manualCount = alerts.filter(a => a.type === 'manual').length;
-  const autoCount = alerts.filter(a => a.type === 'auto').length;
+  const handleFilterClick = (newFilter: string) => {
+    setFilter(filter === newFilter ? 'all' : newFilter);
+    setPage(1);
+  };
 
   // Group alerts by day
   const groupedAlerts: { [key: string]: any[] } = {};
@@ -98,7 +118,7 @@ export default function Alerts() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <button
-          onClick={() => setFilter(filter === 'critical' ? 'all' : 'critical')}
+          onClick={() => handleFilterClick('critical')}
           className={`group bg-white rounded-xl shadow-sm border p-4 md:p-5 text-left transition-all duration-200 hover:shadow-md ${
             filter === 'critical' ? 'ring-2 ring-red-400 border-red-200' : 'border-gray-100 hover:border-red-200'
           }`}
@@ -107,16 +127,16 @@ export default function Alerts() {
             <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center group-hover:bg-red-100 transition-colors">
               <AlertTriangle className="w-4 h-4 text-red-500" />
             </div>
-            {criticalCount > 0 && (
+            {counts.critical > 0 && (
               <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
             )}
           </div>
-          <p className="text-2xl md:text-3xl font-bold text-gray-900">{criticalCount}</p>
+          <p className="text-2xl md:text-3xl font-bold text-gray-900">{counts.critical}</p>
           <p className="text-xs font-medium text-gray-500 mt-0.5">Critical</p>
         </button>
 
         <button
-          onClick={() => setFilter(filter === 'warning' ? 'all' : 'warning')}
+          onClick={() => handleFilterClick('warning')}
           className={`group bg-white rounded-xl shadow-sm border p-4 md:p-5 text-left transition-all duration-200 hover:shadow-md ${
             filter === 'warning' ? 'ring-2 ring-amber-400 border-amber-200' : 'border-gray-100 hover:border-amber-200'
           }`}
@@ -126,12 +146,12 @@ export default function Alerts() {
               <AlertCircle className="w-4 h-4 text-amber-500" />
             </div>
           </div>
-          <p className="text-2xl md:text-3xl font-bold text-gray-900">{warningCount}</p>
+          <p className="text-2xl md:text-3xl font-bold text-gray-900">{counts.warning}</p>
           <p className="text-xs font-medium text-gray-500 mt-0.5">Warnings</p>
         </button>
 
         <button
-          onClick={() => setFilter(filter === 'manual' ? 'all' : 'manual')}
+          onClick={() => handleFilterClick('manual')}
           className={`group bg-white rounded-xl shadow-sm border p-4 md:p-5 text-left transition-all duration-200 hover:shadow-md ${
             filter === 'manual' ? 'ring-2 ring-blue-400 border-blue-200' : 'border-gray-100 hover:border-blue-200'
           }`}
@@ -141,12 +161,12 @@ export default function Alerts() {
               <User className="w-4 h-4 text-blue-500" />
             </div>
           </div>
-          <p className="text-2xl md:text-3xl font-bold text-gray-900">{manualCount}</p>
+          <p className="text-2xl md:text-3xl font-bold text-gray-900">{counts.manual}</p>
           <p className="text-xs font-medium text-gray-500 mt-0.5">Manual</p>
         </button>
 
         <button
-          onClick={() => setFilter(filter === 'auto' ? 'all' : 'auto')}
+          onClick={() => handleFilterClick('auto')}
           className={`group bg-white rounded-xl shadow-sm border p-4 md:p-5 text-left transition-all duration-200 hover:shadow-md ${
             filter === 'auto' ? 'ring-2 ring-purple-400 border-purple-200' : 'border-gray-100 hover:border-purple-200'
           }`}
@@ -156,7 +176,7 @@ export default function Alerts() {
               <Cpu className="w-4 h-4 text-purple-500" />
             </div>
           </div>
-          <p className="text-2xl md:text-3xl font-bold text-gray-900">{autoCount}</p>
+          <p className="text-2xl md:text-3xl font-bold text-gray-900">{counts.auto}</p>
           <p className="text-xs font-medium text-gray-500 mt-0.5">Automated</p>
         </button>
       </div>
@@ -183,14 +203,36 @@ export default function Alerts() {
                 Clear filter
               </button>
             )}
+            {/* Date Filter Dropdown */}
+            <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5">
+              <Clock className="w-3.5 h-3.5 text-gray-400" />
+              <select
+                value={dateFilter}
+                onChange={(e) => {
+                  setDateFilter(e.target.value);
+                  setPage(1); // Reset to page 1 on filter change
+                }}
+                className="bg-transparent text-xs font-medium text-gray-600 focus:outline-none cursor-pointer pr-1"
+              >
+                <option value="all">All Time</option>
+                <option value="today">Today</option>
+                <option value="last7days">Last 7 Days</option>
+                <option value="last30days">Last 30 Days</option>
+              </select>
+            </div>
+
+            {/* Type Filter Dropdown */}
             <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5">
               <Filter className="w-3.5 h-3.5 text-gray-400" />
               <select
                 value={filter}
-                onChange={(e) => setFilter(e.target.value)}
+                onChange={(e) => {
+                  setFilter(e.target.value);
+                  setPage(1); // Reset to page 1 on filter change
+                }}
                 className="bg-transparent text-xs font-medium text-gray-600 focus:outline-none cursor-pointer pr-1"
               >
-                <option value="all">All Activity</option>
+                <option value="all">All Types</option>
                 <option value="critical">Critical</option>
                 <option value="warning">Warnings</option>
                 <option value="manual">Manual</option>
@@ -263,6 +305,36 @@ export default function Alerts() {
             ))
           )}
         </div>
+
+        {/* Pagination Controls */}
+        {!loading && totalPages > 1 && (
+          <div className="px-5 py-4 border-t border-gray-100 flex items-center justify-between bg-gray-50">
+            <div className="text-xs text-gray-500">
+              Showing <span className="font-semibold text-gray-700">{(page - 1) * 20 + 1}</span> to{' '}
+              <span className="font-semibold text-gray-700">{Math.min(page * 20, totalCount)}</span> of{' '}
+              <span className="font-semibold text-gray-700">{totalCount}</span> entries
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Previous
+              </button>
+              <span className="text-xs font-medium text-gray-600">
+                Page {page} of {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

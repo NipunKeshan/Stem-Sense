@@ -7,7 +7,7 @@ import { Droplets, TrendingUp } from 'lucide-react';
 import axios from 'axios';
 
 export default function SoilMoisture() {
-  const [timeRange, setTimeRange] = useState<'6h' | '24h' | 'all'>('24h');
+  const [timeRange, setTimeRange] = useState<'30m' | '1h' | '6h' | '1d' | '7d'>('30m');
   const [maxMoisture, setMaxMoisture] = useState<number | null>(null);
   const [minMoisture, setMinMoisture] = useState<number | null>(null);
   const [avgMoisture, setAvgMoisture] = useState<number | null>(null);
@@ -16,19 +16,12 @@ export default function SoilMoisture() {
     let mounted = true;
     const fetchStats = async () => {
       try {
-        const res = await axios.get('/api/sensors');
+        const res = await axios.get('/api/sensors', { params: { timeRange } });
         if (!res.data?.success || !Array.isArray(res.data.data)) return;
         const arr = [...res.data.data];
         arr.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
-        const now = new Date();
-        let slice = arr;
-        if (timeRange === '6h') {
-          const cutoff = new Date(now.getTime() - 6 * 60 * 60 * 1000);
-          slice = arr.filter((item: any) => new Date(item.timestamp) >= cutoff);
-        } else if (timeRange === '24h') {
-          slice = arr.slice(-24);
-        }
+        const slice = arr;
 
         const values = slice
           .map((it: any) => Number(it.soil_moisture ?? NaN))

@@ -9,6 +9,7 @@ export default function IrrigationControl() {
   const [loading, setLoading] = useState(false);
   const [soilMoisture, setSoilMoisture] = useState(0);
   const [isHardwareLocked, setIsHardwareLocked] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
   const [lastUpdate, setLastUpdate] = useState('');
 
   useEffect(() => {
@@ -20,6 +21,10 @@ export default function IrrigationControl() {
           setSoilMoisture(resData.data.data.soil_moisture || 0);
           const d = new Date(resData.data.data.timestamp);
           setLastUpdate(d.toLocaleTimeString());
+          const diffSec = (Date.now() - d.getTime()) / 1000;
+          setIsOffline(diffSec >= 30);
+        } else {
+          setIsOffline(true);
         }
 
         // Fetch pump status and lock status
@@ -53,7 +58,7 @@ export default function IrrigationControl() {
   };
 
   const isSaturated = soilMoisture >= SOIL_SAFETY_THRESHOLD;
-  const isBlocked = isSaturated || isHardwareLocked;
+  const isBlocked = isSaturated || isHardwareLocked || isOffline;
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4 md:p-6 transition-all duration-300">
@@ -71,7 +76,17 @@ export default function IrrigationControl() {
       
       {/* Blocked Status Banners */}
       <div className="space-y-2 mb-4">
-        {isHardwareLocked && (
+        {isOffline && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-red-800 uppercase">System Offline</p>
+              <p className="text-xs text-red-600">Cannot control pump while NodeMCU is disconnected.</p>
+            </div>
+          </div>
+        )}
+
+        {isHardwareLocked && !isOffline && (
           <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
             <Power className="w-4 h-4 text-amber-600 flex-shrink-0" />
             <div>
@@ -119,12 +134,12 @@ export default function IrrigationControl() {
             className="w-full py-2.5 md:py-3 px-4 bg-[#2E7D32] text-white font-medium rounded-lg hover:bg-[#1B5E20] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm md:text-base"
           >
             <Droplet className="w-4 h-4 md:w-5 md:h-5" />
-            {isHardwareLocked ? '⚠ Hardware Lock Active' : isSaturated ? '⚠ Soil Saturated' : 'Start Watering'}
+            {isOffline ? '⚠ System Offline' : isHardwareLocked ? '⚠ Hardware Lock Active' : isSaturated ? '⚠ Soil Saturated' : 'Start Watering'}
           </button>
           
           <button
             onClick={() => handlePumpToggle(false)}
-            disabled={!pumpStatus || loading || isHardwareLocked}
+            disabled={!pumpStatus || loading || isHardwareLocked || isOffline}
             className="w-full py-2.5 md:py-3 px-4 bg-[#C62828] text-white font-medium rounded-lg hover:bg-[#B71C1C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm md:text-base"
           >
             <Power className="w-4 h-4 md:w-5 md:h-5" />
