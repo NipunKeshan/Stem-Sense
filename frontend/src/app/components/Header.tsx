@@ -1,6 +1,6 @@
 import { Bell, User, Menu, LogOut, Settings, AlertTriangle, Info, X, Cpu, User as UserIcon, CheckCheck, BellOff } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useLocation } from 'react-router';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import {
@@ -19,6 +19,18 @@ interface HeaderProps {
 
 const LAST_READ_KEY = 'stemsense_notifications_last_read';
 
+const PAGE_TITLES: Record<string, string> = {
+  '/': 'Overview',
+  '/soil-moisture': 'Soil Moisture',
+  '/temperature': 'Temp & Humidity',
+  '/air-quality': 'Air Quality',
+  '/light': 'Light Monitor',
+  '/system-health': 'System Health',
+  '/alerts': 'Alerts & Activity',
+  '/settings': 'Settings',
+  '/admin': 'Admin Panel',
+};
+
 export default function Header({ onMenuClick }: HeaderProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -29,6 +41,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const pageSubtitle = PAGE_TITLES[location.pathname] || 'Smart Greenhouse Monitoring';
 
   const handleLogout = () => {
     logout();
@@ -106,18 +121,18 @@ export default function Header({ onMenuClick }: HeaderProps) {
   };
 
   return (
-    <header className="bg-white border-b border-gray-200 shadow-sm">
+    <header className="bg-white border-b border-gray-200 shadow-sm" role="banner">
       <div className="px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
             onClick={onMenuClick}
+            aria-label="Toggle sidebar navigation"
             className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <Menu className="w-6 h-6 text-gray-600" />
           </button>
           <div>
-            <h1 className="text-lg md:text-2xl font-semibold text-gray-800">StemSense</h1>
-            <p className="text-xs md:text-sm text-gray-600 hidden sm:block">Soil Moisture & Irrigation Monitoring</p>
+            <h1 className="text-xl md:text-2xl font-semibold text-gray-800">{pageSubtitle}</h1>
           </div>
         </div>
         
@@ -136,6 +151,8 @@ export default function Header({ onMenuClick }: HeaderProps) {
           <div className="relative" ref={panelRef}>
             <button
               onClick={() => setNotificationsOpen(!notificationsOpen)}
+              aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
+              aria-expanded={notificationsOpen}
               className="relative p-2 hover:bg-gray-100 rounded-full transition-all duration-200"
             >
               <Bell className={`w-5 h-5 transition-colors ${notificationsOpen ? 'text-[#2E7D32]' : 'text-gray-600'}`} />

@@ -1,16 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { ThermometerSun, Droplets, Wind, Lightbulb, Waves, Zap, Leaf, Loader, Bell, Download, TrendingUp, TrendingDown, AlertCircle, CheckCircle, Wifi, WifiOff, Plus, Trash2, Eye, EyeOff } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { useState, useEffect } from 'react';
+import { ThermometerSun, Droplets, Download, Loader, Wifi } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Brush, ReferenceLine, ReferenceArea } from 'recharts';
 import axios from 'axios';
 
 import StatCard from '../components/StatCard';
 
 // Comfort Level Indicator
-
-// Comfort Level Indicator
-const ComfortLevelCard = ({ temperature, humidity }: any) => {
+const ComfortLevelCard = ({ temperature, humidity }: { temperature: number; humidity: number }) => {
   const getComfortLevel = () => {
-    // Comfort zone: 20-24°C and 30-50% humidity
     const tempScore = Math.abs(temperature - 22) <= 2 ? 100 : Math.max(0, 100 - Math.abs(temperature - 22) * 15);
     const humidScore = humidity >= 30 && humidity <= 50 ? 100 : Math.max(0, 100 - Math.abs(humidity - 40) * 1.5);
     const overallScore = (tempScore + humidScore) / 2;
@@ -23,6 +20,13 @@ const ComfortLevelCard = ({ temperature, humidity }: any) => {
 
   const comfort = getComfortLevel();
 
+  const getBarColor = () => {
+    if (comfort.score >= 80) return 'bg-green-500';
+    if (comfort.score >= 60) return 'bg-blue-500';
+    if (comfort.score >= 40) return 'bg-yellow-500';
+    return 'bg-red-500';
+  };
+
   return (
     <div className={`rounded-lg shadow-md p-4 md:p-6 ${comfort.color.split(' ')[0]}`}>
       <h3 className="text-sm font-medium text-gray-600 mb-3">Comfort Level</h3>
@@ -31,7 +35,7 @@ const ComfortLevelCard = ({ temperature, humidity }: any) => {
         <p className={`text-sm font-semibold mt-2 ${comfort.color.split(' ')[1]}`}>{comfort.level}</p>
         <div className="w-full bg-gray-200 rounded-full h-2 mt-3">
           <div
-            className={`h-2 rounded-full transition-all ${comfort.color.split(' ')[0].replace('50', '500')}`}
+            className={`h-2 rounded-full transition-all ${getBarColor()}`}
             style={{ width: `${comfort.score}%` }}
           ></div>
         </div>
@@ -40,17 +44,16 @@ const ComfortLevelCard = ({ temperature, humidity }: any) => {
   );
 };
 
+type TimeRange = '6h' | '24h' | '7d';
+
 export default function Temperature() {
   const [chartData, setChartData] = useState<any[]>([]);
   const [latestData, setLatestData] = useState<any>(null);
   const [previousData, setPreviousData] = useState<any>(null);
-  const [stats, setStats] = useState<any>({
-    maxTemp: 0,
-    minTemp: 0,
-    avgHumidity: 0,
-  });
+  const [stats, setStats] = useState<any>({ maxTemp: 0, minTemp: 0, avgHumidity: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [timeRange, setTimeRange] = useState<TimeRange>('24h');
   
   const downloadReport = () => {
     if (!chartData.length) {
@@ -81,28 +84,38 @@ export default function Temperature() {
         setLoading(true);
         setError('');
         
-        // Fetch readings
         const resData = await axios.get('/api/sensors');
         if (resData.data.success && resData.data.data && resData.data.data.length > 0) {
           const allData = resData.data.data;
           setPreviousData(latestData);
           setLatestData(allData[0]);
           
-          const processedData = [...allData]
-            .reverse()
-            .slice(-24)
-            .map((item: any) => {
-              const d = new Date(item.timestamp);
-              return {
-                time: `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`,
-                temp: item.temperature || 0,
-                humidity: item.humidity || 0,
-              };
-            });
+          // Apply time-range filter
+          const reversed = [...allData].reverse();
+          const now = new Date();
+          let filtered = reversed;
+          if (timeRange === '6h') {
+            const cutoff = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+            filtered = reversed.filter((item: any) => new Date(item.timestamp) >= cutoff);
+          } else if (timeRange === '24h') {
+            filtered = reversed.slice(-24);
+          } else {
+            filtered = reversed.slice(-168);
+          }
+
+          const processedData = filtered.map((item: any) => {
+            const d = new Date(item.timestamp);
+            return {
+              time: timeRange === '7d'
+                ? `${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`
+                : `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`,
+              temp: item.temperature || 0,
+              humidity: item.humidity || 0,
+            };
+          });
           setChartData(processedData);
         }
 
-        // Fetch aggregates (Holistic Fix)
         const resStats = await axios.get('/api/sensors/stats');
         if (resStats.data.success) {
           const s = resStats.data.data;
@@ -123,21 +136,11 @@ export default function Temperature() {
     fetchData();
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
-  }, []);
-
-  const getAQIStatus = (aqi: number) => {
-    if (aqi <= 50) return 'text-green-700 bg-green-50';
-    if (aqi <= 100) return 'text-yellow-700 bg-yellow-50';
-    return 'text-red-700 bg-red-50';
-  };
-
-  const getSensorStatus = () => {
-    return { status: 'Connected', color: 'text-green-600', icon: Wifi };
-  };
+  }, [timeRange]);
 
   if (loading && !latestData) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <Loader className="w-8 h-8 animate-spin text-gray-600 mx-auto mb-4" />
           <p className="text-gray-600">Loading temperature data...</p>
@@ -148,10 +151,10 @@ export default function Temperature() {
 
   if (error && !latestData) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center text-red-600">
           <p className="font-semibold">{error}</p>
-          <p className="text-sm mt-2">Please make sure the backend is running at </p>
+          <p className="text-sm mt-2">Please make sure the backend is running.</p>
         </div>
       </div>
     );
@@ -198,29 +201,44 @@ export default function Temperature() {
         </div>
       )}
 
-
-
-      {/* Charts and Reports */}
+      {/* Charts with Time Range Filter */}
       <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-        <div className="flex items-center justify-between mb-4 md:mb-6">
-          <h2 className="text-base md:text-lg font-semibold text-gray-800">Environmental Trends - Last 24 Hours</h2>
-          <button
-            onClick={downloadReport}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-all">
-            <Download className="w-4 h-4" />
-            Download Report
-          </button>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 md:mb-6 gap-3">
+          <h2 className="text-base md:text-lg font-semibold text-gray-800">Environmental Trends</h2>
+          <div className="flex items-center gap-2">
+            {/* Time Range Filter */}
+            {(['6h', '24h', '7d'] as TimeRange[]).map(range => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  timeRange === range
+                    ? 'bg-[#2E7D32] text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {range === '6h' ? '6 Hours' : range === '24h' ? '24 Hours' : '7 Days'}
+              </button>
+            ))}
+            <button
+              onClick={downloadReport}
+              className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition-all"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export CSV
+            </button>
+          </div>
         </div>
         
         {chartData.length > 0 && (
-          <ResponsiveContainer width="100%" height={350} className="md:h-[450px]">
+          <ResponsiveContainer width="100%" height={350}>
             <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-              <XAxis dataKey="time" stroke="#6B7280" style={{ fontSize: '10px' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.5} />
+              <XAxis dataKey="time" stroke="#9CA3AF" style={{ fontSize: '10px' }} />
               <YAxis 
-                stroke="#6B7280" 
+                stroke="#9CA3AF" 
                 style={{ fontSize: '10px' }}
-                label={{ value: 'Temperature (°C) / Humidity (%)', angle: -90, position: 'insideLeft', style: { fontSize: '10px' } }}
+                label={{ value: 'Temp (°C) / Humidity (%)', angle: -90, position: 'insideLeft', style: { fontSize: '10px' } }}
               />
               <Tooltip 
                 contentStyle={{
@@ -232,6 +250,11 @@ export default function Temperature() {
                 }}
               />
               <Legend wrapperStyle={{ fontSize: '12px' }} />
+              {/* Optimal temperature range */}
+              <ReferenceArea y1={20} y2={28} fill="#2E7D32" fillOpacity={0.05} 
+                label={{ value: 'Optimal', position: 'insideTopLeft', fill: '#2E7D32', fontSize: 9 }} />
+              <ReferenceLine y={30} stroke="#F97316" strokeDasharray="5 5" strokeOpacity={0.6}
+                label={{ value: '30°C High', position: 'right', fill: '#F97316', fontSize: 9 }} />
               <Line 
                 type="monotone" 
                 dataKey="temp" 
@@ -248,6 +271,7 @@ export default function Temperature() {
                 dot={false}
                 name="Humidity (%)"
               />
+              <Brush dataKey="time" height={25} stroke="#F97316" travellerWidth={8} />
             </LineChart>
           </ResponsiveContainer>
         )}

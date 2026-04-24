@@ -10,6 +10,7 @@ import Alerts from "./pages/Alerts";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import AdminPanel from "./pages/AdminPanel";
+import NotFound from "./pages/NotFound";
 import { useAuth } from "./context/AuthContext";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -36,4 +37,6 @@ export const router = createBrowserRouter([
       { path: "settings", Component: Settings },
     ],
   },
+  { path: "*", Component: NotFound },
 ]);
+

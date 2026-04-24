@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Brush, ReferenceArea } from 'recharts';
+import { Calendar } from 'lucide-react';
 import axios from 'axios';
 
 interface MoistureTrendChartProps {
@@ -18,10 +19,12 @@ export default function MoistureTrendChart({ timeRange, onTimeRangeChange }: Moi
           const allData = [...res.data.data].reverse();
 
           let sliced: any[];
-          if (timeRange === '7d') {
-            sliced = allData.slice(-168); // ~7 days of readings at 1/hr
-          } else if (timeRange === '30d') {
-            sliced = allData; // all available
+          const now = new Date();
+          if (timeRange === '6h') {
+            const cutoff = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+            sliced = allData.filter((item: any) => new Date(item.timestamp) >= cutoff);
+          } else if (timeRange === 'all') {
+            sliced = allData;
           } else {
             sliced = allData.slice(-24); // last 24 readings
           }
@@ -50,18 +53,19 @@ export default function MoistureTrendChart({ timeRange, onTimeRangeChange }: Moi
     <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 md:mb-6 gap-3">
         <h2 className="text-base md:text-lg font-semibold text-gray-800">Soil Moisture Trend</h2>
-        <div className="flex gap-2 overflow-x-auto">
-          {['24h', '7d', '30d'].map((range) => (
+        <div className="flex gap-2 overflow-x-auto items-center">
+          <Calendar className="w-4 h-4 text-gray-400" />
+          {(['6h', '24h', 'all'] as const).map((range) => (
             <button
               key={range}
               onClick={() => onTimeRangeChange(range)}
-              className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
+              className={`px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
                 timeRange === range
                   ? 'bg-[#2E7D32] text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              {range === '24h' ? '24 Hours' : range === '7d' ? '7 Days' : '30 Days'}
+              {range === '6h' ? '6 Hours' : range === '24h' ? '24 Hours' : 'All Data'}
             </button>
           ))}
         </div>
@@ -69,7 +73,7 @@ export default function MoistureTrendChart({ timeRange, onTimeRangeChange }: Moi
       
       <ResponsiveContainer width="100%" height={250} className="md:h-[300px]">
         <LineChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.5} />
           <XAxis 
             dataKey="time" 
             stroke="#6B7280"
@@ -93,6 +97,8 @@ export default function MoistureTrendChart({ timeRange, onTimeRangeChange }: Moi
             }}
             formatter={(value: number) => [`${value}%`, 'Moisture']}
           />
+          <ReferenceArea y1={40} y2={70} fill="#2E7D32" fillOpacity={0.05} 
+                label={{ value: 'Optimal', position: 'insideTopLeft', fill: '#2E7D32', fontSize: 9 }} />
           <ReferenceLine 
             y={30} 
             stroke="#E53935" 
@@ -110,9 +116,11 @@ export default function MoistureTrendChart({ timeRange, onTimeRangeChange }: Moi
             dataKey="moisture" 
             stroke="#2E7D32" 
             strokeWidth={2}
-            dot={{ fill: '#2E7D32', r: 3 }}
+            dot={false}
             activeDot={{ r: 5 }}
+            name="Moisture %"
           />
+          <Brush dataKey="time" height={25} stroke="#2E7D32" travellerWidth={8} />
         </LineChart>
       </ResponsiveContainer>
     </div>
