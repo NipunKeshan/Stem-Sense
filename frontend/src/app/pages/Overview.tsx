@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Droplets, ThermometerSun, Wind, Sun, Power, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Droplets, ThermometerSun, Wind, Sun, TrendingUp, AlertTriangle } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
 import StatCard from '../components/StatCard';
+import AlertsPanel from '../components/AlertsPanel';
+import IrrigationControl from '../components/IrrigationControl';
 
 const SOIL_SAFETY_THRESHOLD = 95;
 
@@ -12,9 +14,11 @@ export default function Overview() {
   const { user } = useAuth();
   const [data, setData] = useState<any[]>([]);
   const [latestData, setLatestData] = useState<any | null>(null);
-  const [desiredPumpState, setDesiredPumpState] = useState<number | null>(null);
-  const [pumpLoading, setPumpLoading] = useState(false);
+  const [resDataDesired, setResDataDesired] = useState<number | null>(null);
 
+  const isSoilSaturated = (latestData?.soil_moisture || 0) >= SOIL_SAFETY_THRESHOLD;
+  const pumpIsOn = (resDataDesired !== null ? resDataDesired === 1 : latestData?.pump_state === 1);
+  
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -24,9 +28,6 @@ export default function Overview() {
           
           if (rawData.length > 0) {
             setLatestData(rawData[0]);
-          }
-          if (res.data.desired_pump_state !== undefined) {
-            setDesiredPumpState(res.data.desired_pump_state);
           }
 
           const chartData = [...rawData].reverse().slice(-100).map((item: any) => {
@@ -47,31 +48,23 @@ export default function Overview() {
 
     fetchData();
     const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
-  }, []);
 
-  const handlePumpToggle = async (state: number) => {
-    try {
-      setPumpLoading(true);
-      await axios.post('/api/sensors/pump', { pump: state });
-      setDesiredPumpState(state);
-      // Refresh data to show new state
-      const res = await axios.get('/api/sensors/latest');
-      if (res.data.success) {
-        setLatestData((prev: any) => ({ ...prev, pump_state: state }));
-        if (res.data.desired_pump_state !== undefined) {
-          setDesiredPumpState(res.data.desired_pump_state);
+    const fetchPump = async () => {
+      try {
+        const res = await axios.get('/api/sensors/pump');
+        if (res.data.success) {
+          setResDataDesired(res.data.desired_pump_state);
         }
-      }
-    } catch (err) {
-      console.error('Error toggling pump', err);
-    } finally {
-      setPumpLoading(false);
-    }
-  };
-
-  const isSoilSaturated = (latestData?.soil_moisture || 0) >= SOIL_SAFETY_THRESHOLD;
-  const pumpIsOn = desiredPumpState !== null ? desiredPumpState === 1 : latestData?.pump_state === 1;
+      } catch (e) {}
+    };
+    fetchPump();
+    const inv = setInterval(fetchPump, 5000);
+    
+    return () => {
+      clearInterval(interval);
+      clearInterval(inv);
+    };
+  }, []);
 
   const getAQILabel = (aqi: number) => {
     if (aqi <= 1) return 'Excellent';
@@ -183,48 +176,14 @@ export default function Overview() {
         </ResponsiveContainer>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         {/* Pump Control */}
-        <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-          <h3 className="font-semibold text-gray-800 mb-3 md:mb-4 text-sm md:text-base">Pump Control</h3>
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-4">
-            <div className="flex items-center gap-3">
-              <Power className={`w-6 h-6 ${pumpIsOn ? 'text-green-600' : 'text-gray-400'}`} />
-              <div>
-                <p className="text-sm font-medium text-gray-700">Pump Status</p>
-                <p className={`text-lg font-semibold ${pumpIsOn ? 'text-green-600' : 'text-gray-500'}`}>
-                  {pumpIsOn ? 'ON' : 'OFF'}
-                </p>
-              </div>
-            </div>
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-              pumpIsOn ? 'bg-green-100' : 'bg-gray-200'
-            }`}>
-              <div className={`w-6 h-6 rounded-full ${
-                pumpIsOn ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
-              }`} />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <button
-              onClick={() => handlePumpToggle(1)}
-              disabled={pumpIsOn || pumpLoading || isSoilSaturated}
-              className="w-full py-2.5 px-4 bg-[#2E7D32] text-white font-medium rounded-lg hover:bg-[#1B5E20] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
-            >
-              {isSoilSaturated ? '⚠ Blocked — Soil Saturated' : 'Start Pump'}
-            </button>
-            <button
-              onClick={() => handlePumpToggle(0)}
-              disabled={!pumpIsOn || pumpLoading}
-              className="w-full py-2.5 px-4 bg-[#C62828] text-white font-medium rounded-lg hover:bg-[#B71C1C] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
-            >
-              Stop Pump
-            </button>
-          </div>
+        <div className="lg:col-span-1">
+          <IrrigationControl />
         </div>
 
         {/* System Status */}
-        <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
+        <div className="bg-white rounded-lg shadow-md p-4 md:p-6 lg:col-span-1">
           <h3 className="font-semibold text-gray-800 mb-3 md:mb-4 text-sm md:text-base">System Status</h3>
           <div className="space-y-2 md:space-y-3">
             <div className="flex items-center justify-between">
@@ -254,6 +213,11 @@ export default function Overview() {
               <span className="text-xs md:text-sm font-medium text-green-600">● Connected</span>
             </div>
           </div>
+        </div>
+
+        {/* Alerts Panel */}
+        <div className="lg:col-span-1">
+          <AlertsPanel />
         </div>
       </div>
     </div>

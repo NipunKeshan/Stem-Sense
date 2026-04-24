@@ -1,6 +1,6 @@
 const SensorData = require('../models/SensorData');
 const PumpCommand = require('../models/PumpCommand');
-const Alert = require('../models/Alert');
+const SystemAlert = require('../models/Alert');
 
 const roundTo = (val, decimals) => {
   if (val === undefined || val === null) return val;
@@ -271,7 +271,7 @@ const togglePump = async (req, res) => {
     );
 
     // Create a dynamic alert for manual trigger
-    await Alert.create({
+    await SystemAlert.create({
       severity: 'info',
       message: `Manual Irrigation ${pump === 1 ? 'Started' : 'Stopped'}`,
       type: 'manual'
@@ -370,7 +370,7 @@ const getSensorStats = async (req, res) => {
 // @access  Public
 const getAlerts = async (req, res) => {
   try {
-    const alerts = await Alert.find().sort({ timestamp: -1 }).limit(20);
+    const alerts = await SystemAlert.find().sort({ timestamp: -1 }).limit(20);
     res.status(200).json({ success: true, count: alerts.length, data: alerts });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Server Error', message: error.message });
