@@ -74,3 +74,4 @@ coverage/
 .cache/
 temp/
 tmp/
+*.ino
