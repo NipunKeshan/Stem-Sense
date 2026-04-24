@@ -25,7 +25,8 @@ export default function IrrigationControl() {
         // Fetch pump status and lock status
         const resPump = await axios.get('http://localhost:5000/api/sensors/pump');
         if (resPump.data.success) {
-          setPumpStatus(resPump.data.actual_pump_state === 1);
+          // Use desired_pump_state for the UI to prevent jitter
+          setPumpStatus(resPump.data.desired_pump_state === 1);
           setIsHardwareLocked(resPump.data.manual_override === 1);
         }
       } catch (err) {

@@ -12,7 +12,13 @@ const roundTo = (val, decimals) => {
 const getSensorData = async (req, res) => {
   try {
     const data = await SensorData.find().sort({ captured_at: -1 });
-    res.status(200).json({ success: true, count: data.length, data });
+    const command = await PumpCommand.findOne({ _id: 'global' });
+    res.status(200).json({ 
+      success: true, 
+      count: data.length, 
+      data,
+      desired_pump_state: command ? command.pump : 0 
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Server Error', message: error.message });
   }
@@ -24,7 +30,12 @@ const getSensorData = async (req, res) => {
 const getLatestSensorData = async (req, res) => {
   try {
     const data = await SensorData.findOne().sort({ captured_at: -1 });
-    res.status(200).json({ success: true, data });
+    const command = await PumpCommand.findOne({ _id: 'global' });
+    res.status(200).json({ 
+      success: true, 
+      data,
+      desired_pump_state: command ? command.pump : 0
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Server Error', message: error.message });
   }
