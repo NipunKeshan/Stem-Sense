@@ -151,6 +151,16 @@ IGNORE all sensor data below unless the user asks a specific question.`;
     });
   } catch (error) {
     console.error('Chatbot error:', error);
+    
+    // Graceful handling for high demand / 503 errors
+    if (error.status === 503 || (error.message && error.message.includes('503'))) {
+      return res.status(200).json({
+        success: true,
+        response: "⚠️ **StemSense AI is currently experiencing high demand.**\n\nThe AI inference servers are temporarily overloaded due to high traffic. Please wait a few moments and try your request again. \n\n*Rest assured, your local sensor monitoring and greenhouse automation systems are fully operational.*",
+        source: 'system',
+      });
+    }
+
     res.status(500).json({
       success: false,
       error: 'Failed to process chat message',
