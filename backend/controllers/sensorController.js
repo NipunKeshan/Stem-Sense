@@ -1,6 +1,6 @@
 const SensorData = require('../models/SensorData');
 const { getPumpDecision } = require("../ml/inferenceService");
-
+const Pump = require('../models/Pump');
 const roundTo = (val, decimals) => {
   if (val === undefined || val === null) return val;
   return Number(Math.round(val + 'e' + decimals) + 'e-' + decimals);
@@ -217,24 +217,16 @@ const setPumpState = async (req, res) => {
       });
     }
 
-    // Create/update pump state record
-    const sensorData = await SensorData.create({
-      device_id,
-      pump_state,
-      temperature: 0,
-      humidity: 0,
-      tvoc: 0,
-      eco2: 0,
-      aqi: 0,
-      lux: 0,
-      dli: 0,
-      soil_moisture: 0
+    // Insert a record into PumpData collection
+    const pumpRecord = await Pump.create({
+      status,
+      timestamp: new Date()
     });
 
     res.status(201).json({
       success: true,
-      message: 'Pump state updated successfully',
-      data: sensorData
+      message: 'Pump state recorded successfully',
+      data: pumpRecord
     });
   } catch (error) {
     console.error(error);
@@ -266,15 +258,16 @@ const togglePump = async (req, res) => {
         error: 'pump must be 0 or 1'
       });
     }
-
-    // Check for hardware override lock (PRODUCTION GRADE SAFETY)
-    const latest = await SensorData.findOne().sort({ timestamp: -1 });
-    if (latest && latest.manual_override === 1) {
-      return res.status(423).json({
-        success: false,
-        error: 'Hardware Override Active',
-        message: 'The physical override switch on NodeMCU is ON. Remote commands are disabled for safety.'
+    // Record the user-triggered pump command in PumpData collection (non-fatal)
+    const status = pump;
+    console.log(status)
+    try {
+      await Pump.create({
+        status,
+        timestamp: new Date()
       });
+    } catch (pumpErr) {
+      console.error('[Pump] failed to record toggle command:', pumpErr.message);
     }
 
     desiredPumpState = pump;
