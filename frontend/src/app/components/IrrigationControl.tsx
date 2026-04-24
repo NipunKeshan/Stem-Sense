@@ -15,7 +15,7 @@ export default function IrrigationControl() {
     const fetchStatus = async () => {
       try {
         // Fetch sensor data for moisture
-        const resData = await axios.get('http://localhost:5000/api/sensors/latest');
+        const resData = await axios.get('/api/sensors/latest');
         if (resData.data.success && resData.data.data) {
           setSoilMoisture(resData.data.data.soil_moisture || 0);
           const d = new Date(resData.data.data.timestamp);
@@ -23,7 +23,7 @@ export default function IrrigationControl() {
         }
 
         // Fetch pump status and lock status
-        const resPump = await axios.get('http://localhost:5000/api/sensors/pump');
+        const resPump = await axios.get('/api/sensors/pump');
         if (resPump.data.success) {
           // Use desired_pump_state for the UI to prevent jitter
           setPumpStatus(resPump.data.desired_pump_state === 1);
@@ -41,7 +41,7 @@ export default function IrrigationControl() {
   const handlePumpToggle = async (on: boolean) => {
     try {
       setLoading(true);
-      await axios.post('http://localhost:5000/api/sensors/pump', {
+      await axios.post('/api/sensors/pump', {
         pump: on ? 1 : 0
       });
       setPumpStatus(on);

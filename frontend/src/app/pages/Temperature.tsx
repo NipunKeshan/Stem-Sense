@@ -82,7 +82,7 @@ export default function Temperature() {
         setError('');
         
         // Fetch readings
-        const resData = await axios.get('http://localhost:5000/api/sensors');
+        const resData = await axios.get('/api/sensors');
         if (resData.data.success && resData.data.data && resData.data.data.length > 0) {
           const allData = resData.data.data;
           setPreviousData(latestData);
@@ -103,7 +103,7 @@ export default function Temperature() {
         }
 
         // Fetch aggregates (Holistic Fix)
-        const resStats = await axios.get('http://localhost:5000/api/sensors/stats');
+        const resStats = await axios.get('/api/sensors/stats');
         if (resStats.data.success) {
           const s = resStats.data.data;
           setStats({
@@ -181,7 +181,7 @@ export default function Temperature() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center text-red-600">
           <p className="font-semibold">{error}</p>
-          <p className="text-sm mt-2">Please make sure the backend is running at http://localhost:5000</p>
+          <p className="text-sm mt-2">Please make sure the backend is running at </p>
         </div>
       </div>
     );

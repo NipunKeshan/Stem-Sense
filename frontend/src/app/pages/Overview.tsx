@@ -18,7 +18,7 @@ export default function Overview() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/sensors');
+        const res = await axios.get('/api/sensors');
         if (res.data.success) {
           const rawData = res.data.data;
           
@@ -53,10 +53,10 @@ export default function Overview() {
   const handlePumpToggle = async (state: number) => {
     try {
       setPumpLoading(true);
-      await axios.post('http://localhost:5000/api/sensors/pump', { pump: state });
+      await axios.post('/api/sensors/pump', { pump: state });
       setDesiredPumpState(state);
       // Refresh data to show new state
-      const res = await axios.get('http://localhost:5000/api/sensors/latest');
+      const res = await axios.get('/api/sensors/latest');
       if (res.data.success) {
         setLatestData((prev: any) => ({ ...prev, pump_state: state }));
         if (res.data.desired_pump_state !== undefined) {

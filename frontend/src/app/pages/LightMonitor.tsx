@@ -29,7 +29,7 @@ export default function LightMonitor() {
         setError('');
         
         // Fetch readings for chart
-        const resData = await axios.get('http://localhost:5000/api/sensors');
+        const resData = await axios.get('/api/sensors');
         if (resData.data.success && resData.data.data && resData.data.data.length > 0) {
           const allData = resData.data.data;
           setLatestData(allData[0]);
@@ -49,7 +49,7 @@ export default function LightMonitor() {
         }
 
         // Fetch aggregate stats from backend (Holistic Fix)
-        const resStats = await axios.get('http://localhost:5000/api/sensors/stats');
+        const resStats = await axios.get('/api/sensors/stats');
         if (resStats.data.success) {
           const s = resStats.data.data.lux;
           setStats({
@@ -86,7 +86,7 @@ export default function LightMonitor() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center text-red-600">
           <p className="font-semibold">{error}</p>
-          <p className="text-sm mt-2">Ensure the backend is running at http://localhost:5000</p>
+          <p className="text-sm mt-2">Ensure the backend is running at </p>
         </div>
       </div>
     );
