@@ -1,6 +1,6 @@
 const SensorData = require('../models/SensorData');
-const { getPumpDecision } = require("../ml/inferenceService");
-const Pump = require('../models/Pump');
+const PumpCommand = require('../models/PumpCommand');
+
 const roundTo = (val, decimals) => {
   if (val === undefined || val === null) return val;
   return Number(Math.round(val + 'e' + decimals) + 'e-' + decimals);
@@ -11,8 +11,14 @@ const roundTo = (val, decimals) => {
 // @access  Public
 const getSensorData = async (req, res) => {
   try {
-    const data = await SensorData.find().sort({ timestamp: -1 });
-    res.status(200).json({ success: true, count: data.length, data });
+    const data = await SensorData.find().sort({ captured_at: -1 });
+    const command = await PumpCommand.findOne({ _id: 'global' });
+    res.status(200).json({ 
+      success: true, 
+      count: data.length, 
+      data,
+      desired_pump_state: command ? command.pump : 0 
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Server Error', message: error.message });
   }
@@ -23,8 +29,13 @@ const getSensorData = async (req, res) => {
 // @access  Public
 const getLatestSensorData = async (req, res) => {
   try {
-    const data = await SensorData.findOne().sort({ timestamp: -1 });
-    res.status(200).json({ success: true, data });
+    const data = await SensorData.findOne().sort({ captured_at: -1 });
+    const command = await PumpCommand.findOne({ _id: 'global' });
+    res.status(200).json({ 
+      success: true, 
+      data,
+      desired_pump_state: command ? command.pump : 0
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Server Error', message: error.message });
   }
@@ -46,46 +57,28 @@ const addSensorData = async (req, res) => {
       dli,
       soil_moisture,
       pump_state,
-      manual_override = 0
+      manual_override
     } = req.body;
-
-    let finalPumpState = pump_state ?? 0;   // fallback if device omits it
-
-    if (Number(manual_override) === 1) {
-          // Hardware override is active — respect device pump_state, skip ML
-          console.log(`[ML] manual_override=1 on ${device_id} — skipping inference`);
-        } else {
-          // Run the ONNX model
-          try {
-            const { pump_state: mlDecision, confidence } = await getPumpDecision({
-              temperature, humidity, tvoc, eco2, aqi, lux, dli, soil_moisture,
-            });
-            finalPumpState = mlDecision;
-            console.log(
-              `[ML] ${device_id} → pump=${mlDecision === 1 ? "ON" : "OFF"}  confidence=${(confidence * 100).toFixed(1)}%`
-            );
-          } catch (mlErr) {
-            // ML failure must NEVER break the data pipeline
-            // Fall back to the device-reported pump_state and log the error
-            console.error(`[ML] Inference error for ${device_id}:`, mlErr.message);
-            finalPumpState = pump_state ?? 0;
-            console.log(`[ML] Falling back to device pump_state=${finalPumpState} for ${device_id}`);
-          }
-        }
 
     // Create sensor record
     const sensorData = await SensorData.create({
-      device_id,
-      temperature,
-      humidity,
-      tvoc,
-      eco2,
-      aqi,
-      lux,
-      dli,
-      soil_moisture,
-      pump_state:  finalPumpState, 
-      manual_override: manual_override || 0
+      sensor_id: device_id,
+      captured_at: new Date(),
+      ts_source: 'node_backend',
+      env: {
+        temperature_c: temperature,
+        humidity_pct: humidity,
+        tvoc_ppb: tvoc,
+        eco2_ppm: eco2,
+        aqi: aqi,
+        lux: lux
+      },
+      soil: {
+        moisture_pct: soil_moisture
+      },
+      actuators: {
+        pump_on: pump_state === 1
+      }
     });
 
     res.status(201).json({
@@ -112,7 +105,7 @@ const addSensorData = async (req, res) => {
 // @access  Public
 const getTemperature = async (req, res) => {
   try {
-    const data = await SensorData.findOne().sort({ timestamp: -1 }).select('temperature timestamp');
+    const data = await SensorData.findOne().sort({ captured_at: -1 });
     res.status(200).json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Server Error', message: error.message });
@@ -124,7 +117,7 @@ const getTemperature = async (req, res) => {
 // @access  Public
 const getHumidity = async (req, res) => {
   try {
-    const data = await SensorData.findOne().sort({ timestamp: -1 }).select('humidity timestamp');
+    const data = await SensorData.findOne().sort({ captured_at: -1 });
     res.status(200).json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Server Error', message: error.message });
@@ -136,7 +129,7 @@ const getHumidity = async (req, res) => {
 // @access  Public
 const getTvoc = async (req, res) => {
   try {
-    const data = await SensorData.findOne().sort({ timestamp: -1 }).select('tvoc timestamp');
+    const data = await SensorData.findOne().sort({ captured_at: -1 });
     res.status(200).json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Server Error', message: error.message });
@@ -148,7 +141,7 @@ const getTvoc = async (req, res) => {
 // @access  Public
 const getEco2 = async (req, res) => {
   try {
-    const data = await SensorData.findOne().sort({ timestamp: -1 }).select('eco2 timestamp');
+    const data = await SensorData.findOne().sort({ captured_at: -1 });
     res.status(200).json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Server Error', message: error.message });
@@ -160,7 +153,7 @@ const getEco2 = async (req, res) => {
 // @access  Public
 const getAqi = async (req, res) => {
   try {
-    const data = await SensorData.findOne().sort({ timestamp: -1 }).select('aqi timestamp');
+    const data = await SensorData.findOne().sort({ captured_at: -1 });
     res.status(200).json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Server Error', message: error.message });
@@ -172,7 +165,7 @@ const getAqi = async (req, res) => {
 // @access  Public
 const getLux = async (req, res) => {
   try {
-    const data = await SensorData.findOne().sort({ timestamp: -1 }).select('lux timestamp');
+    const data = await SensorData.findOne().sort({ captured_at: -1 });
     res.status(200).json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Server Error', message: error.message });
@@ -184,7 +177,7 @@ const getLux = async (req, res) => {
 // @access  Public
 const getDli = async (req, res) => {
   try {
-    const data = await SensorData.findOne().sort({ timestamp: -1 }).select('dli timestamp');
+    const data = await SensorData.findOne().sort({ captured_at: -1 });
     res.status(200).json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Server Error', message: error.message });
@@ -196,7 +189,7 @@ const getDli = async (req, res) => {
 // @access  Public
 const getSoilMoisture = async (req, res) => {
   try {
-    const data = await SensorData.findOne().sort({ timestamp: -1 }).select('soil_moisture timestamp');
+    const data = await SensorData.findOne().sort({ captured_at: -1 });
     res.status(200).json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Server Error', message: error.message });
@@ -217,16 +210,24 @@ const setPumpState = async (req, res) => {
       });
     }
 
-    // Insert a record into PumpData collection
-    const pumpRecord = await Pump.create({
-      status,
-      timestamp: new Date()
+    // Create/update pump state record
+    const sensorData = await SensorData.create({
+      device_id,
+      pump_state,
+      temperature: 0,
+      humidity: 0,
+      tvoc: 0,
+      eco2: 0,
+      aqi: 0,
+      lux: 0,
+      dli: 0,
+      soil_moisture: 0
     });
 
     res.status(201).json({
       success: true,
-      message: 'Pump state recorded successfully',
-      data: pumpRecord
+      message: 'Pump state updated successfully',
+      data: sensorData
     });
   } catch (error) {
     console.error(error);
@@ -242,8 +243,7 @@ const setPumpState = async (req, res) => {
   }
 };
 
-// In-memory desired pump state (mirrors Flask server.py's pump_command)
-let desiredPumpState = 0;
+// Desired pump state is now persisted to MongoDB pump_command collection
 
 // @desc    Toggle pump on/off (used by frontend)
 // @route   POST /api/sensors/pump
@@ -258,24 +258,21 @@ const togglePump = async (req, res) => {
         error: 'pump must be 0 or 1'
       });
     }
-    // Record the user-triggered pump command in PumpData collection (non-fatal)
-    const status = pump;
-    console.log(status)
-    try {
-      await Pump.create({
-        status,
-        timestamp: new Date()
-      });
-    } catch (pumpErr) {
-      console.error('[Pump] failed to record toggle command:', pumpErr.message);
-    }
 
-    desiredPumpState = pump;
+    // Persist to pump_command collection (global doc)
+    await PumpCommand.findOneAndUpdate(
+      { _id: 'global' },
+      { 
+        pump: pump, 
+        updated_at: new Date() 
+      },
+      { upsert: true, new: true }
+    );
 
     res.status(200).json({
       success: true,
       message: `Pump ${pump === 1 ? 'ON' : 'OFF'} command sent`,
-      pump_state: desiredPumpState
+      pump_state: pump
     });
   } catch (error) {
     console.error(error);
@@ -288,58 +285,16 @@ const togglePump = async (req, res) => {
 // @access  Public
 const getPumpState = async (req, res) => {
   try {
-    const data = await SensorData.findOne().sort({ timestamp: -1 }).select('pump_state manual_override timestamp');
+    const data = await SensorData.findOne().sort({ captured_at: -1 });
+    const command = await PumpCommand.findOne({ _id: 'global' });
+
     res.status(200).json({
       success: true,
-      desired_pump_state: desiredPumpState,
+      desired_pump_state: command ? command.pump : 0,
       actual_pump_state: data?.pump_state || 0,
       manual_override: data?.manual_override || 0
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: 'Server Error', message: error.message });
-  }
-};
-
-// @desc    Get today's pump ON readings (Sri Lanka local day)
-// @route   GET /api/sensors/pump/today
-// @access  Public
-const getTodayPumpOnData = async (req, res) => {
-  try {
-    const tz = 'Asia/Colombo';
-    const locale = 'en-CA'; // yields YYYY-MM-DD format
-    const now = new Date();
-    const dtf = new Intl.DateTimeFormat(locale, { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' });
-    const [year, month, day] = dtf.format(now).split('-');
-
-    const startISO = `${year}-${month}-${day}T00:00:00+05:30`;
-    const endISO = `${year}-${month}-${day}T23:59:59.999+05:30`;
-
-    const start = new Date(startISO);
-    const end = new Date(endISO);
-
-    const docs = await SensorData.find({
-      pump_state: 1,
-      timestamp: { $gte: start, $lte: end }
-    }).sort({ timestamp: -1 }).select('pump_state timestamp -_id');
-
-    const data = docs.map(d => {
-      const sriTime = new Date(d.timestamp).toLocaleString('en-CA', {
-        timeZone: tz,
-        hour12: false,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      }).replace(',', '').trim();
-
-      return { pump_state: d.pump_state, timestamp: sriTime };
-    });
-
-    res.status(200).json({ success: true, count: data.length, data });
-  } catch (error) {
-    console.error(error);
     res.status(500).json({ success: false, error: 'Server Error', message: error.message });
   }
 };
@@ -351,11 +306,11 @@ const getSensorStats = async (req, res) => {
   try {
     // Get data from last 24 hours
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    let data = await SensorData.find({ timestamp: { $gte: twentyFourHoursAgo } }).sort({ timestamp: -1 });
+    let data = await SensorData.find({ captured_at: { $gte: twentyFourHoursAgo } }).sort({ captured_at: -1 });
 
     // Fallback: If no data in 24h, get latest 100 readings (for dev/low activity)
     if (!data || data.length === 0) {
-      data = await SensorData.find().sort({ timestamp: -1 }).limit(100);
+      data = await SensorData.find().sort({ captured_at: -1 }).limit(100);
     }
 
     if (!data || data.length === 0) {
@@ -417,6 +372,5 @@ module.exports = {
   setPumpState,
   togglePump,
   getPumpState,
-  getTodayPumpOnData,
   getSensorStats
 };
