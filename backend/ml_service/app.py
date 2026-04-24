@@ -28,7 +28,7 @@ app = Flask(__name__)
 CORS(app)
 
 # ── Config ─────────────────────────────────────────────────────────────────
-MONGO_URI  = os.environ.get('MONGODB_URI', 'mongodb://localhost:27017/stemsense')
+MONGO_URI  = os.environ.get('MONGODB_URI')
 MODEL_PATH = os.path.join(os.path.dirname(__file__), 'models', 'stress_forecast_best_model.pkl')
 META_PATH  = os.path.join(os.path.dirname(__file__), 'models', 'model_metadata.json')
 
@@ -44,12 +44,13 @@ ZONES = {
     'critical': (61, 100),
 }
 
-
 # ── Load model once at startup ─────────────────────────────────────────────
 def load_model():
     if not os.path.exists(MODEL_PATH):
         raise FileNotFoundError(f"Model not found at: {MODEL_PATH}")
     model = joblib.load(MODEL_PATH)
+    print(f"🚀  Starting ML service with model: {MONGO_URI}")
+
     print(f"✅  Model loaded from {MODEL_PATH}")
     return model
 
@@ -114,12 +115,24 @@ def fetch_latest_readings(n: int = 30) -> pd.DataFrame:
     client = MongoClient(MONGO_URI)
     db     = client.get_default_database()
 
-    docs = list(
-        db.sensordata
-          .find({}, {'_id': 0, 'env': 1, 'soil': 1, 'captured_at': 1})
-          .sort('captured_at', -1)
-          .limit(n)
-    )
+    # Try known collection names; some deployments use 'sensordata' while
+    # the main backend writes to 'telemetry'. Accept either to be robust.
+    docs = []
+    for col_name in ('sensordata', 'telemetry'):
+        try:
+            coll = db.get_collection(col_name)
+            docs = list(
+                coll.find({}, {'_id': 0, 'env': 1, 'soil': 1, 'captured_at': 1})
+                    .sort('captured_at', -1)
+                    .limit(n)
+            )
+            if docs:
+                if col_name != 'sensordata':
+                    print(f"⚠️  fetch_latest_readings: using fallback collection '{col_name}'")
+                break
+        except Exception:
+            # ignore and try next collection name
+            docs = []
     client.close()
 
     if not docs:
