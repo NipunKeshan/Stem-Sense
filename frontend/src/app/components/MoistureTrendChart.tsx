@@ -13,7 +13,7 @@ export default function MoistureTrendChart({ timeRange, onTimeRangeChange }: Moi
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/sensors');
+        const res = await axios.get('/api/sensors');
         if (res.data.success && res.data.data) {
           const allData = [...res.data.data].reverse();
 

@@ -20,7 +20,7 @@ export default function SystemHealth() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/sensors/latest');
+        const res = await axios.get('/api/sensors/latest');
         if (res.data.success && res.data.data) {
           setLatestData(res.data.data);
           const d = new Date(res.data.data.timestamp);

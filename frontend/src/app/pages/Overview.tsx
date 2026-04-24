@@ -12,17 +12,21 @@ export default function Overview() {
   const { user } = useAuth();
   const [data, setData] = useState<any[]>([]);
   const [latestData, setLatestData] = useState<any | null>(null);
+  const [desiredPumpState, setDesiredPumpState] = useState<number | null>(null);
   const [pumpLoading, setPumpLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/sensors');
+        const res = await axios.get('/api/sensors');
         if (res.data.success) {
           const rawData = res.data.data;
           
           if (rawData.length > 0) {
             setLatestData(rawData[0]);
+          }
+          if (res.data.desired_pump_state !== undefined) {
+            setDesiredPumpState(res.data.desired_pump_state);
           }
 
           const chartData = [...rawData].reverse().slice(-100).map((item: any) => {
@@ -49,11 +53,15 @@ export default function Overview() {
   const handlePumpToggle = async (state: number) => {
     try {
       setPumpLoading(true);
-      await axios.post('http://localhost:5000/api/sensors/pump', { pump: state });
+      await axios.post('/api/sensors/pump', { pump: state });
+      setDesiredPumpState(state);
       // Refresh data to show new state
-      const res = await axios.get('http://localhost:5000/api/sensors/latest');
+      const res = await axios.get('/api/sensors/latest');
       if (res.data.success) {
         setLatestData((prev: any) => ({ ...prev, pump_state: state }));
+        if (res.data.desired_pump_state !== undefined) {
+          setDesiredPumpState(res.data.desired_pump_state);
+        }
       }
     } catch (err) {
       console.error('Error toggling pump', err);
@@ -63,7 +71,7 @@ export default function Overview() {
   };
 
   const isSoilSaturated = (latestData?.soil_moisture || 0) >= SOIL_SAFETY_THRESHOLD;
-  const pumpIsOn = latestData?.pump_state === 1;
+  const pumpIsOn = desiredPumpState !== null ? desiredPumpState === 1 : latestData?.pump_state === 1;
 
   const getAQILabel = (aqi: number) => {
     if (aqi <= 1) return 'Excellent';
