@@ -357,6 +357,19 @@ const getSensorStats = async (req, res) => {
   }
 };
 
+// GET /api/sensors/pump/today
+const getTodayPumpOnData = async (req, res) => {
+  try {
+    const startOfDay = new Date();
+    startOfDay.setHours(0,0,0,0);
+    const data = await SensorData.find({ captured_at: { $gte: startOfDay } }).sort({ captured_at: 1 });
+    res.status(200).json({ success: true, count: data.length, data });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, error: 'Server Error', message: error.message });
+  }
+};
+
 module.exports = {
   getSensorData,
   addSensorData,
@@ -372,5 +385,6 @@ module.exports = {
   setPumpState,
   togglePump,
   getPumpState,
-  getSensorStats
+  getSensorStats,
+  getTodayPumpOnData
 };
