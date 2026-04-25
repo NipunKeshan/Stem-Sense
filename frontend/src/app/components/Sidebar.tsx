@@ -1,13 +1,13 @@
 import { Link, useLocation } from 'react-router';
 import { useAuth } from '../context/AuthContext';
-import { 
-  LayoutDashboard, 
-  Droplets, 
-  ThermometerSun, 
+import {
+  LayoutDashboard,
+  Droplets,
+  ThermometerSun,
   Wind,
   Sun,
-  Activity, 
-  Bell, 
+  Activity,
+  Bell,
   Settings,
   X,
   ListChecks,
@@ -18,7 +18,7 @@ import {
 
 const menuItems = [
   { path: '/', label: 'Overview', icon: LayoutDashboard, permission: 'Overview' },
-  { path: '/monitoring', label: 'Monitoring', icon: ListChecks, permission: 'Monitoring' },
+  { path: '/monitoring', label: 'Analysis', icon: ListChecks, permission: 'Monitoring' },
   { path: '/soil-moisture', label: 'Soil Moisture', icon: Droplets, permission: 'Soil Moisture' },
   { path: '/temperature', label: 'Temperature & Humidity', icon: ThermometerSun, permission: 'Temperature' },
   { path: '/air-quality', label: 'Air Quality', icon: Wind, permission: 'Air Quality' },
@@ -36,7 +36,7 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const location = useLocation();
   const { user, logout } = useAuth();
-  
+
   const hasAccess = (permission: string) => user?.role === 'admin' || user?.permissions?.includes(permission);
   const visibleItems = menuItems.filter(item => hasAccess(item.permission));
 
@@ -44,12 +44,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     <>
       {/* Overlay for mobile */}
       {isOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
           onClick={onClose}
         />
       )}
-      
+
       {/* Sidebar */}
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-50
@@ -64,7 +64,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             </div>
             <h1 className="text-xl font-bold tracking-tight">StemSense</h1>
           </div>
-          <button 
+          <button
             onClick={onClose}
             aria-label="Close sidebar navigation"
             className="lg:hidden p-1 hover:bg-green-700 rounded"
@@ -77,9 +77,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <Link
               to="/admin"
               onClick={onClose}
-              className={`flex items-center gap-3 px-6 py-3 transition-colors ${
-                location.pathname === '/admin' ? 'bg-green-700 border-l-4 border-[#A5D6A7]' : 'hover:bg-green-800'
-              }`}
+              className={`flex items-center gap-3 px-6 py-3 transition-colors ${location.pathname === '/admin' ? 'bg-green-700 border-l-4 border-[#A5D6A7]' : 'hover:bg-green-800'
+                }`}
             >
               <Users className="w-5 h-5" />
               <span className="text-sm md:text-base">Admin Panel</span>
@@ -88,17 +87,16 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           {visibleItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
-            
+
             return (
               <Link
                 key={item.path}
                 to={item.path}
                 onClick={onClose}
-                className={`flex items-center gap-3 px-6 py-3 transition-colors ${
-                  isActive 
-                    ? 'bg-green-700 border-l-4 border-[#A5D6A7]' 
+                className={`flex items-center gap-3 px-6 py-3 transition-colors ${isActive
+                    ? 'bg-green-700 border-l-4 border-[#A5D6A7]'
                     : 'hover:bg-green-800'
-                }`}
+                  }`}
               >
                 <Icon className="w-5 h-5" />
                 <span className="text-sm md:text-base">{item.label}</span>
@@ -107,7 +105,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           })}
         </nav>
         <div className="px-4 py-2 border-t border-green-700">
-          <button 
+          <button
             onClick={() => logout()}
             className="flex items-center gap-3 w-full text-left transition-colors hover:bg-green-800 rounded"
           >

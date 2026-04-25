@@ -39,11 +39,11 @@ const getSensorData = async (req, res) => {
       .limit(timeRange === 'all' ? 2000 : 0); // Hard limit 2000 for 'all' to prevent crashing
 
     const command = await PumpCommand.findOne({ _id: 'global' });
-    res.status(200).json({ 
-      success: true, 
-      count: data.length, 
+    res.status(200).json({
+      success: true,
+      count: data.length,
       data,
-      desired_pump_state: command ? command.pump : 0 
+      desired_pump_state: command ? command.pump : 0
     });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Server Error', message: error.message });
@@ -57,8 +57,8 @@ const getLatestSensorData = async (req, res) => {
   try {
     const data = await SensorData.findOne().sort({ captured_at: -1 });
     const command = await PumpCommand.findOne({ _id: 'global' });
-    res.status(200).json({ 
-      success: true, 
+    res.status(200).json({
+      success: true,
       data,
       desired_pump_state: command ? command.pump : 0
     });
@@ -288,9 +288,9 @@ const togglePump = async (req, res) => {
     // Persist to pump_command collection (global doc)
     await PumpCommand.findOneAndUpdate(
       { _id: 'global' },
-      { 
-        pump: pump, 
-        updated_at: new Date() 
+      {
+        pump: pump,
+        updated_at: new Date()
       },
       { upsert: true, returnDocument: 'after' }
     );
@@ -364,7 +364,7 @@ const getSensorStats = async (req, res) => {
     const calculate = (arr, key, decimals = 1) => {
       const values = arr.map(d => d[key]).filter(v => v !== undefined && v !== null);
       if (values.length === 0) return { min: 0, max: 0, avg: 0 };
-      
+
       const sum = values.reduce((a, b) => a + b, 0);
       return {
         min: roundTo(Math.min(...values), decimals),
@@ -473,6 +473,8 @@ const getTodayPumpOnData = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+  }
+};
 // @desc    Get all alerts with pagination and filtering
 // @route   GET /api/sensors/alerts
 // @access  Public
@@ -502,7 +504,7 @@ const getAlerts = async (req, res) => {
 
     // Build specific query for fetching paginated data
     const query = { ...baseQuery };
-    
+
     // Apply type/severity filter
     if (filterType !== 'all') {
       if (['critical', 'warning'].includes(filterType)) {
@@ -528,9 +530,9 @@ const getAlerts = async (req, res) => {
       .skip(startIndex)
       .limit(limit);
 
-    res.status(200).json({ 
-      success: true, 
-      count: alerts.length, 
+    res.status(200).json({
+      success: true,
+      count: alerts.length,
       total,
       totalPages: Math.ceil(total / limit),
       currentPage: page,
@@ -540,9 +542,156 @@ const getAlerts = async (req, res) => {
         manual: manualCount,
         auto: autoCount
       },
-      data: alerts 
+      data: alerts
     });
   } catch (error) {
+    res.status(500).json({ success: false, error: 'Server Error', message: error.message });
+  }
+};
+
+// ── Helpers for correlation computation ──────────────────────────────────
+function computeStressScore(row) {
+  let score = 0;
+  const temp = row.temperature_c ?? 25;
+  if (temp > 38) score += 30;
+  else if (temp > 35) score += 20;
+  else if (temp > 32) score += 10;
+
+  const hum = row.humidity_pct ?? 50;
+  if (hum < 30) score += 30;
+  else if (hum < 40) score += 15;
+
+  const moist = row.moisture_pct ?? 50;
+  if (moist < 20) score += 30;
+  else if (moist < 35) score += 15;
+
+  const tvoc = row.tvoc_ppb ?? 0;
+  if (tvoc > 300) score += 10;
+  else if (tvoc > 200) score += 5;
+
+  return Math.min(Math.round(score * 100) / 100, 100);
+}
+
+function classifyZone(score) {
+  if (score <= 30) return 'healthy';
+  if (score <= 60) return 'warning';
+  return 'critical';
+}
+
+function pearson(xs, ys) {
+  const n = xs.length;
+  if (n < 2) return 0;
+  let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+  for (let i = 0; i < n; i++) {
+    sumX += xs[i]; sumY += ys[i];
+    sumXY += xs[i] * ys[i];
+    sumX2 += xs[i] * xs[i];
+    sumY2 += ys[i] * ys[i];
+  }
+  const num = n * sumXY - sumX * sumY;
+  const den = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+  return den === 0 ? 0 : Math.round((num / den) * 1000) / 1000;
+}
+
+// @desc    Get sensor correlation data from historical DB readings
+// @route   GET /api/sensors/correlation
+// @access  Public
+const getSensorCorrelation = async (req, res) => {
+  try {
+    // Fetch historical data — try last 500 readings regardless of age
+    let docs = await SensorData.find()
+      .sort({ captured_at: -1 })
+      .limit(500)
+      .lean();
+
+    if (!docs || docs.length === 0) {
+      return res.status(200).json({
+        success: true,
+        sample_count: 0,
+        scatter_data: [],
+        feature_importance: {},
+        correlation_matrix: {},
+      });
+    }
+
+    // Flatten nested env/soil into flat rows
+    const FEATURE_COLS = [
+      'temperature_c', 'humidity_pct', 'moisture_pct',
+      'lux', 'tvoc_ppb', 'eco2_ppm', 'aqi', 'stress_score'
+    ];
+
+    const rows = docs.map(d => {
+      const env = d.env || {};
+      const soil = d.soil || {};
+      const flat = {
+        temperature_c: env.temperature_c ?? 25,
+        humidity_pct: env.humidity_pct ?? 50,
+        moisture_pct: soil.moisture_pct ?? 40,
+        lux: env.lux ?? 0,
+        tvoc_ppb: env.tvoc_ppb ?? 100,
+        eco2_ppm: env.eco2_ppm ?? 400,
+        aqi: env.aqi ?? 20,
+      };
+      flat.stress_score = computeStressScore(flat);
+      return flat;
+    });
+
+    // ── Pearson correlation matrix ──
+    const corr_matrix = {};
+    for (const col1 of FEATURE_COLS) {
+      corr_matrix[col1] = {};
+      const xs = rows.map(r => r[col1]);
+      for (const col2 of FEATURE_COLS) {
+        const ys = rows.map(r => r[col2]);
+        corr_matrix[col1][col2] = pearson(xs, ys);
+      }
+    }
+
+    // ── Feature importance (correlation with stress_score as proxy) ──
+    const stressVals = rows.map(r => r.stress_score);
+    const feature_importance = {};
+    const absCorrs = [];
+    for (const col of FEATURE_COLS) {
+      const vals = rows.map(r => r[col]);
+      const corr = pearson(vals, stressVals);
+      absCorrs.push({ col, corr, abs: Math.abs(corr) });
+    }
+    const totalAbs = absCorrs.reduce((s, c) => s + c.abs, 0) || 1;
+    for (const { col, corr, abs } of absCorrs) {
+      feature_importance[col] = {
+        coefficient: Math.round(corr * 1000) / 1000,
+        importance: Math.round((abs / totalAbs) * 10000) / 10000,
+      };
+    }
+
+    // ── Scatter data for 3 key pairs ──
+    const scatter_pairs = [
+      ['moisture_pct', 'temperature_c', 'Soil Moisture vs Temperature'],
+      ['moisture_pct', 'humidity_pct', 'Soil Moisture vs Humidity'],
+      ['temperature_c', 'humidity_pct', 'Temperature vs Humidity'],
+    ];
+
+    const scatter_data = scatter_pairs.map(([x_col, y_col, label]) => ({
+      label,
+      x_col,
+      y_col,
+      points: rows.map(r => ({
+        x: Math.round(r[x_col] * 100) / 100,
+        y: Math.round(r[y_col] * 100) / 100,
+        stress: Math.round(r.stress_score * 100) / 100,
+        zone: classifyZone(r.stress_score),
+      })),
+    }));
+
+    res.status(200).json({
+      success: true,
+      sample_count: rows.length,
+      correlation_matrix: corr_matrix,
+      feature_importance,
+      scatter_data,
+    });
+  } catch (error) {
+    console.error('Error computing sensor correlation:', error);
     res.status(500).json({ success: false, error: 'Server Error', message: error.message });
   }
 };
@@ -563,5 +712,6 @@ module.exports = {
   getPumpState,
   getSensorStats,
   getTodayPumpOnData,
-  getAlerts
+  getAlerts,
+  getSensorCorrelation
 };
