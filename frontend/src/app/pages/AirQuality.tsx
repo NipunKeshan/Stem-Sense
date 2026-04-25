@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Wind, Waves, Zap, Loader, AlertTriangle } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { useState, useEffect } from 'react';
+import { Wind, Waves, Zap, Loader, AlertTriangle, Calendar, Download } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Brush, ReferenceLine } from 'recharts';
 import axios from 'axios';
 import StatCard from '../components/StatCard';
+import { downloadCSV } from '../../utils/export';
+
+type TimeRange = '30m' | '1h' | '6h' | '1d' | '7d';
 
 const getAQILabel = (aqi: number) => {
   if (aqi <= 1) return { label: 'Excellent', color: '#22c55e', bg: 'bg-green-50 text-green-700' };
@@ -30,6 +33,7 @@ export default function AirQuality() {
   const [stats, setStats] = useState<any>({ maxAqi: 0, avgTvoc: 0, avgEco2: 0, maxEco2: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [timeRange, setTimeRange] = useState<TimeRange>('30m');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -38,28 +42,28 @@ export default function AirQuality() {
         setError('');
         
         // Fetch chart data
-        const resData = await axios.get('http://localhost:5000/api/sensors');
+        const resData = await axios.get('/api/sensors', { params: { timeRange } });
         if (resData.data.success && resData.data.data && resData.data.data.length > 0) {
           const allData = resData.data.data;
           setLatestData(allData[0]);
 
-          const processedData = [...allData]
-            .reverse()
-            .slice(-24)
-            .map((item: any) => {
-              const d = new Date(item.timestamp);
-              return {
-                time: `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`,
-                aqi: item.aqi || 0,
-                tvoc: item.tvoc || 0,
-                eco2: item.eco2 || 0,
-              };
-            });
+          const reversed = [...allData].reverse();
+          const filtered = reversed;
+
+          const processedData = filtered.map((item: any) => {
+            const d = new Date(item.timestamp);
+            return {
+              time: `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`,
+              aqi: item.aqi || 0,
+              tvoc: item.tvoc || 0,
+              eco2: item.eco2 || 0,
+            };
+          });
           setChartData(processedData);
         }
 
         // Fetch stats from backend
-        const resStats = await axios.get('http://localhost:5000/api/sensors/stats');
+        const resStats = await axios.get('/api/sensors/stats');
         if (resStats.data.success) {
           const s = resStats.data.data;
           setStats({
@@ -79,7 +83,7 @@ export default function AirQuality() {
     fetchData();
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [timeRange]);
 
   if (loading && !latestData) {
     return (
@@ -97,7 +101,7 @@ export default function AirQuality() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center text-red-600">
           <p className="font-semibold">{error}</p>
-          <p className="text-sm mt-2">Ensure the backend is running at http://localhost:5000</p>
+          <p className="text-sm mt-2">Ensure the backend is running at </p>
         </div>
       </div>
     );
@@ -160,10 +164,35 @@ export default function AirQuality() {
       {/* Trend Chart */}
       {chartData.length > 0 && (
         <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-          <h2 className="text-base md:text-lg font-semibold text-gray-800 mb-4 md:mb-6">Air Quality Trends — Last 24 Readings</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 md:mb-6 gap-3">
+            <h2 className="text-base md:text-lg font-semibold text-gray-800">Air Quality Trends</h2>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => downloadCSV(chartData, `stemsense_airquality_${timeRange}`)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors mr-2"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Export
+              </button>
+              <Calendar className="w-4 h-4 text-gray-400" />
+              {(['30m', '1h', '6h', '1d', '7d'] as TimeRange[]).map(range => (
+                <button
+                  key={range}
+                  onClick={() => setTimeRange(range)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    timeRange === range
+                      ? 'bg-[#2E7D32] text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {range === '30m' ? '30 Min' : range === '1h' ? '1 Hour' : range === '6h' ? '6 Hours' : range === '1d' ? '1 Day' : '7 Days'}
+                </button>
+              ))}
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height={350}>
             <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.5} />
               <XAxis dataKey="time" stroke="#6B7280" style={{ fontSize: '10px' }} />
               <YAxis
                 yAxisId="left"
@@ -176,7 +205,7 @@ export default function AirQuality() {
                 orientation="right"
                 stroke="#6B7280"
                 style={{ fontSize: '10px' }}
-                label={{ value: 'TVOC (ppb) / eCO₂ (ppm)', angle: 90, position: 'insideRight', style: { fontSize: '10px' } }}
+                label={{ value: 'TVOC / eCO₂', angle: 90, position: 'insideRight', style: { fontSize: '10px' } }}
               />
               <Tooltip
                 contentStyle={{
@@ -188,9 +217,12 @@ export default function AirQuality() {
                 }}
               />
               <Legend wrapperStyle={{ fontSize: '12px' }} />
+              <ReferenceLine yAxisId="right" y={600} stroke="#ef4444" strokeDasharray="5 5" strokeOpacity={0.5}
+                label={{ value: 'CO₂ 600ppm', position: 'right', fill: '#ef4444', fontSize: 9 }} />
               <Line yAxisId="left" type="monotone" dataKey="aqi" stroke="#22c55e" strokeWidth={2} dot={false} name="AQI" />
               <Line yAxisId="right" type="monotone" dataKey="tvoc" stroke="#a855f7" strokeWidth={2} dot={false} name="TVOC (ppb)" />
               <Line yAxisId="right" type="monotone" dataKey="eco2" stroke="#ef4444" strokeWidth={2} dot={false} name="eCO₂ (ppm)" />
+              <Brush dataKey="time" height={25} stroke="#22c55e" travellerWidth={8} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -202,28 +234,28 @@ export default function AirQuality() {
           icon={Wind}
           title="Peak AQI"
           value={stats.maxAqi}
-          color="bg-emerald-50"
+          color="bg-emerald-500"
         />
         <StatCard
           icon={Waves}
           title="Avg TVOC"
           value={stats.avgTvoc}
           unit="ppb"
-          color="bg-purple-50"
+          color="bg-purple-500"
         />
         <StatCard
           icon={Zap}
           title="Avg eCO₂"
           value={stats.avgEco2}
           unit="ppm"
-          color="bg-rose-50"
+          color="bg-rose-500"
         />
         <StatCard
           icon={Zap}
           title="Peak eCO₂"
           value={stats.maxEco2}
           unit="ppm"
-          color="bg-rose-100"
+          color="bg-rose-600"
         />
       </div>
     </div>

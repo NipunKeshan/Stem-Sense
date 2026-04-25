@@ -6,48 +6,40 @@ const roundTo = (val, decimals) => {
 };
 
 const sensorDataSchema = new mongoose.Schema({
-  device_id: { type: String, required: true },
-  temperature: { type: Number, required: true },
-  humidity: { type: Number, required: true },
-  tvoc: { type: Number, required: true },
-  eco2: { type: Number, required: true },
-  aqi: { type: Number, required: true },
-  lux: { type: Number, required: true },
-  dli: { type: Number, required: true },
-  soil_moisture: { type: Number, required: true },
-  pump_state: { type: Number, required: true },
-  manual_override: { type: Number, default: 0 },
-  timestamp: { type: Date, default: Date.now }
-}, {
-  timestamps: true,
-  toJSON: {
-    transform: (doc, ret) => {
-      ret.temperature = roundTo(ret.temperature, 1);
-      ret.humidity = roundTo(ret.humidity, 1);
-      ret.soil_moisture = roundTo(ret.soil_moisture, 1);
-      ret.lux = roundTo(ret.lux, 1);
-      ret.aqi = roundTo(ret.aqi, 0);
-      ret.tvoc = roundTo(ret.tvoc, 0);
-      ret.eco2 = roundTo(ret.eco2, 0);
-      ret.dli = roundTo(ret.dli, 2);
-      ret.manual_override = ret.manual_override || 0;
-      return ret;
-    }
+  sensor_id: { type: String, required: true },
+  captured_at: { type: Date, required: true },
+  ts_source: { type: String },
+  env: {
+    temperature_c: { type: Number },
+    humidity_pct: { type: Number },
+    tvoc_ppb: { type: Number },
+    eco2_ppm: { type: Number },
+    aqi: { type: Number },
+    lux: { type: Number }
   },
-  toObject: {
-    transform: (doc, ret) => {
-      ret.temperature = roundTo(ret.temperature, 1);
-      ret.humidity = roundTo(ret.humidity, 1);
-      ret.soil_moisture = roundTo(ret.soil_moisture, 1);
-      ret.lux = roundTo(ret.lux, 1);
-      ret.aqi = roundTo(ret.aqi, 0);
-      ret.tvoc = roundTo(ret.tvoc, 0);
-      ret.eco2 = roundTo(ret.eco2, 0);
-      ret.dli = roundTo(ret.dli, 2);
-      ret.manual_override = ret.manual_override || 0;
-      return ret;
-    }
+  soil: {
+    moisture_pct: { type: Number }
+  },
+  actuators: {
+    pump_on: { type: Boolean }
   }
+}, {
+  collection: 'telemetry',
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
+
+// Virtuals to flatten the data for the frontend (keeping it compatible with existing code)
+sensorDataSchema.virtual('temperature').get(function() { return roundTo(this.env?.temperature_c, 1); });
+sensorDataSchema.virtual('humidity').get(function() { return roundTo(this.env?.humidity_pct, 1); });
+sensorDataSchema.virtual('tvoc').get(function() { return roundTo(this.env?.tvoc_ppb, 0); });
+sensorDataSchema.virtual('eco2').get(function() { return roundTo(this.env?.eco2_ppm, 0); });
+sensorDataSchema.virtual('aqi').get(function() { return roundTo(this.env?.aqi, 0); });
+sensorDataSchema.virtual('lux').get(function() { return roundTo(this.env?.lux, 1); });
+sensorDataSchema.virtual('soil_moisture').get(function() { return roundTo(this.soil?.moisture_pct, 1); });
+sensorDataSchema.virtual('pump_state').get(function() { return this.actuators?.pump_on ? 1 : 0; });
+sensorDataSchema.virtual('timestamp').get(function() { return this.captured_at; });
+sensorDataSchema.virtual('device_id').get(function() { return this.sensor_id; });
 
 module.exports = mongoose.model('SensorData', sensorDataSchema);

@@ -1,242 +1,340 @@
-import { AlertTriangle, AlertCircle, Info, CheckCircle, Filter } from 'lucide-react';
-import { useState } from 'react';
-
-const allAlerts = [
-  {
-    id: 1,
-    severity: 'critical',
-    category: 'Soil Moisture',
-    message: 'Critical: Soil moisture at 25%. Immediate irrigation required.',
-    time: '30 min ago',
-    resolved: false,
-  },
-  {
-    id: 2,
-    severity: 'warning',
-    category: 'Temperature',
-    message: 'Warning: Temperature approaching upper threshold (29°C).',
-    time: '1 hour ago',
-    resolved: false,
-  },
-  {
-    id: 3,
-    severity: 'warning',
-    category: 'Soil Moisture',
-    message: 'Soil moisture dropped below 30%. Irrigation recommended.',
-    time: '2 hours ago',
-    resolved: true,
-  },
-  {
-    id: 4,
-    severity: 'info',
-    category: 'Irrigation',
-    message: 'Irrigation cycle completed successfully. Duration: 15 minutes.',
-    time: '4 hours ago',
-    resolved: false,
-  },
-  {
-    id: 5,
-    severity: 'success',
-    category: 'Soil Moisture',
-    message: 'Soil moisture levels optimal for plant growth.',
-    time: '6 hours ago',
-    resolved: false,
-  },
-  {
-    id: 6,
-    severity: 'warning',
-    category: 'System',
-    message: 'Network latency detected. Response time: 250ms.',
-    time: '8 hours ago',
-    resolved: true,
-  },
-  {
-    id: 7,
-    severity: 'warning',
-    category: 'Air Quality',
-    message: 'AQI reached level 4 (Poor). Ventilation recommended.',
-    time: '10 hours ago',
-    resolved: false,
-  },
-  {
-    id: 8,
-    severity: 'info',
-    category: 'Light',
-    message: 'Daily Light Integral below target. Consider supplemental lighting.',
-    time: '12 hours ago',
-    resolved: false,
-  },
-  {
-    id: 9,
-    severity: 'critical',
-    category: 'Pump Safety',
-    message: 'Pump blocked — soil moisture at 96%. Safety override active.',
-    time: '14 hours ago',
-    resolved: true,
-  },
-];
+import { AlertTriangle, AlertCircle, Info, Filter, User, Cpu, Activity, Clock, Zap } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 
 export default function Alerts() {
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [counts, setCounts] = useState({ critical: 0, warning: 0, manual: 0, auto: 0 });
 
-  const getSeverityIcon = (severity: string) => {
-    switch (severity) {
-      case 'critical':
-        return <AlertTriangle className="w-4 h-4 md:w-5 md:h-5 text-red-500" />;
-      case 'warning':
-        return <AlertCircle className="w-4 h-4 md:w-5 md:h-5 text-orange-500" />;
-      case 'success':
-        return <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-green-500" />;
-      default:
-        return <Info className="w-4 h-4 md:w-5 md:h-5 text-blue-500" />;
+  const fetchAlerts = async (isAutoRefresh = false) => {
+    if (isAutoRefresh && page > 1) return; // Disable auto-refresh past page 1
+    
+    try {
+      const res = await axios.get('/api/sensors/alerts', {
+        params: {
+          page,
+          limit: 20,
+          filter,
+          dateFilter
+        }
+      });
+      if (res.data.success) {
+        setAlerts(res.data.data);
+        setTotalPages(res.data.totalPages);
+        setTotalCount(res.data.total);
+        if (res.data.counts) {
+          setCounts(res.data.counts);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching alerts', err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'critical':
-        return 'bg-red-50 border-red-200';
-      case 'warning':
-        return 'bg-orange-50 border-orange-200';
-      case 'success':
-        return 'bg-green-50 border-green-200';
-      default:
-        return 'bg-blue-50 border-blue-200';
-    }
+  useEffect(() => {
+    fetchAlerts(false);
+  }, [page, filter, dateFilter]);
+
+  useEffect(() => {
+    const interval = setInterval(() => fetchAlerts(true), 10000);
+    return () => clearInterval(interval);
+  }, [page, filter, dateFilter]);
+
+  const getSeverityIcon = (severity: string, type: string) => {
+    if (severity === 'critical') return <AlertTriangle className="w-4 h-4" />;
+    if (severity === 'warning') return <AlertCircle className="w-4 h-4" />;
+    if (type === 'manual') return <User className="w-4 h-4" />;
+    if (type === 'auto') return <Cpu className="w-4 h-4" />;
+    return <Info className="w-4 h-4" />;
   };
 
-  const filteredAlerts = allAlerts.filter(alert => {
-    if (filter === 'all') return true;
-    if (filter === 'unresolved') return !alert.resolved;
-    return alert.severity === filter;
+  const getIconStyle = (severity: string, type: string) => {
+    if (severity === 'critical') return { bg: 'bg-red-100', text: 'text-red-600' };
+    if (severity === 'warning') return { bg: 'bg-amber-100', text: 'text-amber-600' };
+    if (type === 'manual') return { bg: 'bg-blue-100', text: 'text-blue-600' };
+    if (type === 'auto') return { bg: 'bg-purple-100', text: 'text-purple-600' };
+    return { bg: 'bg-emerald-100', text: 'text-emerald-600' };
+  };
+
+  const getCardAccent = (severity: string, type: string) => {
+    if (severity === 'critical') return 'border-l-red-500';
+    if (severity === 'warning') return 'border-l-amber-500';
+    if (type === 'manual') return 'border-l-blue-500';
+    if (type === 'auto') return 'border-l-purple-500';
+    return 'border-l-emerald-500';
+  };
+
+  const formatTime = (timestamp: string) => {
+    const d = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'just now';
+    if (diffMin < 60) return `${diffMin}m ago`;
+    if (diffMin < 1440) return `${Math.floor(diffMin / 60)}h ago`;
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' at ' +
+           d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // We don't filter in frontend anymore, we just use the alerts directly
+  const filteredAlerts = alerts;
+
+  const handleFilterClick = (newFilter: string) => {
+    setFilter(filter === newFilter ? 'all' : newFilter);
+    setPage(1);
+  };
+
+  // Group alerts by day
+  const groupedAlerts: { [key: string]: any[] } = {};
+  filteredAlerts.forEach(alert => {
+    const d = new Date(alert.timestamp);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    let key: string;
+    if (d.toDateString() === today.toDateString()) {
+      key = 'Today';
+    } else if (d.toDateString() === yesterday.toDateString()) {
+      key = 'Yesterday';
+    } else {
+      key = d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+    }
+
+    if (!groupedAlerts[key]) groupedAlerts[key] = [];
+    groupedAlerts[key].push(alert);
   });
 
-  const criticalCount = allAlerts.filter(a => a.severity === 'critical' && !a.resolved).length;
-  const warningCount = allAlerts.filter(a => a.severity === 'warning' && !a.resolved).length;
-
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
-        <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="w-4 h-4 md:w-5 md:h-5 text-red-500" />
-            <h3 className="text-xs md:text-sm font-medium text-gray-600">Critical</h3>
+    <div className="space-y-5">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <button
+          onClick={() => handleFilterClick('critical')}
+          className={`group bg-white rounded-xl shadow-sm border p-4 md:p-5 text-left transition-all duration-200 hover:shadow-md ${
+            filter === 'critical' ? 'ring-2 ring-red-400 border-red-200' : 'border-gray-100 hover:border-red-200'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center group-hover:bg-red-100 transition-colors">
+              <AlertTriangle className="w-4 h-4 text-red-500" />
+            </div>
+            {counts.critical > 0 && (
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            )}
           </div>
-          <p className="text-2xl md:text-3xl font-bold text-red-600">{criticalCount}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertCircle className="w-4 h-4 md:w-5 md:h-5 text-orange-500" />
-            <h3 className="text-xs md:text-sm font-medium text-gray-600">Warning</h3>
+          <p className="text-2xl md:text-3xl font-bold text-gray-900">{counts.critical}</p>
+          <p className="text-xs font-medium text-gray-500 mt-0.5">Critical</p>
+        </button>
+
+        <button
+          onClick={() => handleFilterClick('warning')}
+          className={`group bg-white rounded-xl shadow-sm border p-4 md:p-5 text-left transition-all duration-200 hover:shadow-md ${
+            filter === 'warning' ? 'ring-2 ring-amber-400 border-amber-200' : 'border-gray-100 hover:border-amber-200'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center group-hover:bg-amber-100 transition-colors">
+              <AlertCircle className="w-4 h-4 text-amber-500" />
+            </div>
           </div>
-          <p className="text-2xl md:text-3xl font-bold text-orange-600">{warningCount}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-          <div className="flex items-center gap-2 mb-2">
-            <Info className="w-4 h-4 md:w-5 md:h-5 text-blue-500" />
-            <h3 className="text-xs md:text-sm font-medium text-gray-600">Info</h3>
+          <p className="text-2xl md:text-3xl font-bold text-gray-900">{counts.warning}</p>
+          <p className="text-xs font-medium text-gray-500 mt-0.5">Warnings</p>
+        </button>
+
+        <button
+          onClick={() => handleFilterClick('manual')}
+          className={`group bg-white rounded-xl shadow-sm border p-4 md:p-5 text-left transition-all duration-200 hover:shadow-md ${
+            filter === 'manual' ? 'ring-2 ring-blue-400 border-blue-200' : 'border-gray-100 hover:border-blue-200'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+              <User className="w-4 h-4 text-blue-500" />
+            </div>
           </div>
-          <p className="text-2xl md:text-3xl font-bold text-blue-600">
-            {allAlerts.filter(a => a.severity === 'info').length}
-          </p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-          <div className="flex items-center gap-2 mb-2">
-            <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-green-500" />
-            <h3 className="text-xs md:text-sm font-medium text-gray-600">Resolved</h3>
+          <p className="text-2xl md:text-3xl font-bold text-gray-900">{counts.manual}</p>
+          <p className="text-xs font-medium text-gray-500 mt-0.5">Manual</p>
+        </button>
+
+        <button
+          onClick={() => handleFilterClick('auto')}
+          className={`group bg-white rounded-xl shadow-sm border p-4 md:p-5 text-left transition-all duration-200 hover:shadow-md ${
+            filter === 'auto' ? 'ring-2 ring-purple-400 border-purple-200' : 'border-gray-100 hover:border-purple-200'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-9 h-9 rounded-lg bg-purple-50 flex items-center justify-center group-hover:bg-purple-100 transition-colors">
+              <Cpu className="w-4 h-4 text-purple-500" />
+            </div>
           </div>
-          <p className="text-2xl md:text-3xl font-bold text-green-600">
-            {allAlerts.filter(a => a.resolved).length}
-          </p>
-        </div>
+          <p className="text-2xl md:text-3xl font-bold text-gray-900">{counts.auto}</p>
+          <p className="text-xs font-medium text-gray-500 mt-0.5">Automated</p>
+        </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 md:mb-6 gap-3">
-          <h2 className="text-base md:text-lg font-semibold text-gray-800">Alert History</h2>
+      {/* Activity Timeline */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        {/* Toolbar */}
+        <div className="px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
+              <Activity className="w-4 h-4 text-gray-600" />
+            </div>
+            <div>
+              <h2 className="text-sm md:text-base font-semibold text-gray-800">Activity Timeline</h2>
+              <p className="text-[11px] text-gray-400">{alerts.length} total events logged</p>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-500" />
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="px-3 md:px-4 py-2 border border-gray-300 rounded-lg text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-[#2E7D32]"
-            >
-              <option value="all">All Alerts</option>
-              <option value="unresolved">Unresolved</option>
-              <option value="critical">Critical</option>
-              <option value="warning">Warning</option>
-              <option value="info">Info</option>
-              <option value="success">Success</option>
-            </select>
+            {filter !== 'all' && (
+              <button
+                onClick={() => setFilter('all')}
+                className="text-[11px] font-medium text-[#2E7D32] hover:underline"
+              >
+                Clear filter
+              </button>
+            )}
+            {/* Date Filter Dropdown */}
+            <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5">
+              <Clock className="w-3.5 h-3.5 text-gray-400" />
+              <select
+                value={dateFilter}
+                onChange={(e) => {
+                  setDateFilter(e.target.value);
+                  setPage(1); // Reset to page 1 on filter change
+                }}
+                className="bg-transparent text-xs font-medium text-gray-600 focus:outline-none cursor-pointer pr-1"
+              >
+                <option value="all">All Time</option>
+                <option value="today">Today</option>
+                <option value="last7days">Last 7 Days</option>
+                <option value="last30days">Last 30 Days</option>
+              </select>
+            </div>
+
+            {/* Type Filter Dropdown */}
+            <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5">
+              <Filter className="w-3.5 h-3.5 text-gray-400" />
+              <select
+                value={filter}
+                onChange={(e) => {
+                  setFilter(e.target.value);
+                  setPage(1); // Reset to page 1 on filter change
+                }}
+                className="bg-transparent text-xs font-medium text-gray-600 focus:outline-none cursor-pointer pr-1"
+              >
+                <option value="all">All Types</option>
+                <option value="critical">Critical</option>
+                <option value="warning">Warnings</option>
+                <option value="manual">Manual</option>
+                <option value="auto">Automated</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        <div className="space-y-2 md:space-y-3">
-          {filteredAlerts.map((alert) => (
-            <div
-              key={alert.id}
-              className={`p-3 md:p-4 rounded-lg border ${getSeverityColor(alert.severity)} ${
-                alert.resolved ? 'opacity-60' : ''
-              }`}
-            >
-              <div className="flex items-start gap-2 md:gap-3">
-                {getSeverityIcon(alert.severity)}
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <span className="text-xs font-medium text-gray-600 uppercase">
-                      {alert.category}
-                    </span>
-                    {alert.resolved && (
-                      <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded">
-                        Resolved
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs md:text-sm font-medium text-gray-800 break-words">{alert.message}</p>
-                  <p className="text-xs text-gray-600 mt-1">{alert.time}</p>
+        {/* Timeline Content */}
+        <div className="divide-y divide-gray-50">
+          {loading && alerts.length === 0 ? (
+            <div className="py-16 text-center">
+              <div className="w-8 h-8 border-2 border-gray-200 border-t-[#2E7D32] rounded-full animate-spin mx-auto mb-3" />
+              <p className="text-sm text-gray-400">Loading activity timeline...</p>
+            </div>
+          ) : filteredAlerts.length === 0 ? (
+            <div className="py-16 text-center">
+              <Zap className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+              <p className="text-sm font-medium text-gray-400">No activity yet</p>
+              <p className="text-xs text-gray-300 mt-1">
+                {filter !== 'all' ? 'Try changing the filter above' : 'Events will appear here when they occur'}
+              </p>
+            </div>
+          ) : (
+            Object.entries(groupedAlerts).map(([dayLabel, dayAlerts]) => (
+              <div key={dayLabel}>
+                {/* Day Header */}
+                <div className="px-5 py-2 bg-gray-50/70 flex items-center gap-2">
+                  <Clock className="w-3 h-3 text-gray-400" />
+                  <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{dayLabel}</span>
+                  <span className="text-[10px] text-gray-300 font-medium">({dayAlerts.length})</span>
                 </div>
-                {!alert.resolved && (
-                  <button className="px-2 md:px-3 py-1 bg-[#2E7D32] text-white text-xs font-medium rounded hover:bg-[#1B5E20] transition-colors flex-shrink-0">
-                    Resolve
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
 
-      <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-        <h3 className="font-semibold text-gray-800 mb-3 md:mb-4 text-sm md:text-base">Alert Settings</h3>
-        <div className="space-y-3 md:space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs md:text-sm font-medium text-gray-700">Email Notifications</p>
-              <p className="text-xs text-gray-500">Receive alerts via email</p>
-            </div>
-            <button className="w-12 h-6 bg-[#2E7D32] rounded-full relative flex-shrink-0">
-              <div className="w-5 h-5 bg-white rounded-full absolute right-0.5 top-0.5"></div>
-            </button>
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs md:text-sm font-medium text-gray-700">Push Notifications</p>
-              <p className="text-xs text-gray-500">Receive push notifications</p>
-            </div>
-            <button className="w-12 h-6 bg-[#2E7D32] rounded-full relative flex-shrink-0">
-              <div className="w-5 h-5 bg-white rounded-full absolute right-0.5 top-0.5"></div>
-            </button>
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs md:text-sm font-medium text-gray-700">SMS Alerts</p>
-              <p className="text-xs text-gray-500">Receive critical alerts via SMS</p>
-            </div>
-            <button className="w-12 h-6 bg-gray-300 rounded-full relative flex-shrink-0">
-              <div className="w-5 h-5 bg-white rounded-full absolute left-0.5 top-0.5"></div>
-            </button>
-          </div>
+                {/* Day Events */}
+                {dayAlerts.map((alert) => {
+                  const style = getIconStyle(alert.severity, alert.type);
+                  return (
+                    <div
+                      key={alert._id}
+                      className={`px-5 py-3.5 border-l-[3px] hover:bg-gray-50/50 transition-colors ${getCardAccent(alert.severity, alert.type)}`}
+                    >
+                      <div className="flex items-start gap-3">
+                        {/* Icon */}
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${style.bg}`}>
+                          <span className={style.text}>
+                            {getSeverityIcon(alert.severity, alert.type)}
+                          </span>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-medium text-gray-800 leading-snug">{alert.message}</p>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                              alert.type === 'manual' ? 'bg-blue-50 text-blue-600' :
+                              alert.type === 'auto' ? 'bg-purple-50 text-purple-600' :
+                              'bg-gray-100 text-gray-500'
+                            }`}>
+                              {alert.type === 'manual' ? 'Manual' : alert.type === 'auto' ? 'ML Engine' : 'System'}
+                            </span>
+                            <span className="text-[11px] text-gray-400">{formatTime(alert.timestamp)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ))
+          )}
         </div>
+
+        {/* Pagination Controls */}
+        {!loading && totalPages > 1 && (
+          <div className="px-5 py-4 border-t border-gray-100 flex items-center justify-between bg-gray-50">
+            <div className="text-xs text-gray-500">
+              Showing <span className="font-semibold text-gray-700">{(page - 1) * 20 + 1}</span> to{' '}
+              <span className="font-semibold text-gray-700">{Math.min(page * 20, totalCount)}</span> of{' '}
+              <span className="font-semibold text-gray-700">{totalCount}</span> entries
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Previous
+              </button>
+              <span className="text-xs font-medium text-gray-600">
+                Page {page} of {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
