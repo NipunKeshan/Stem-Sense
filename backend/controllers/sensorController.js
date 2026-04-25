@@ -584,15 +584,27 @@ const getSensorData = async (req, res) => {
 // @access  Public
 const getMLStatus = async (req, res) => {
   try {
-    // Basic status info
+    const pumpCmd = await PumpCommand.findOne({ _id: 'global' });
+    const MANUAL_WINDOW_MS = 10 * 60 * 1000;
+    const isManualOverride = pumpCmd?.source === 'manual' &&
+      pumpCmd?.updated_at &&
+      (Date.now() - new Date(pumpCmd.updated_at).getTime()) < MANUAL_WINDOW_MS;
+
     res.status(200).json({
       success: true,
-      status: 'operational',
-      model_info: {
-        name: 'StemSense Pump Decision Model',
-        version: '3.0',
-        engine: 'ONNX Runtime'
-      }
+      model: {
+        accuracy: 0.74,
+        roc_auc: 0.7157,
+        features: 10,
+        size_kb: 439.42,
+        top_feature: 'temperature_c'
+      },
+      mode: isManualOverride ? 'manual' : 'ml',
+      last_command: pumpCmd ? {
+        pump: pumpCmd.pump,
+        source: pumpCmd.source,
+        updated_at: pumpCmd.updated_at
+      } : null
     });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Server Error', message: error.message });
@@ -604,12 +616,18 @@ const getMLStatus = async (req, res) => {
 // @access  Public
 const getSensorCorrelation = async (req, res) => {
   try {
-    // Placeholder for correlation data
+    // Return a valid structure that ForcastChart.tsx expects
     res.status(200).json({
       success: true,
-      message: 'Correlation analysis is currently based on historical trends.',
-      data: {
-        info: 'Full correlation matrix available in ML service'
+      scatter_data: [
+        { label: "Soil vs Temperature", x_col: "moisture_pct", y_col: "temperature_c", points: [] },
+        { label: "Soil vs Humidity", x_col: "moisture_pct", y_col: "humidity_pct", points: [] },
+        { label: "Temp vs Humidity", x_col: "temperature_c", y_col: "humidity_pct", points: [] }
+      ],
+      feature_importance: {
+        temperature_c: { importance: 0.1999, coefficient: 0.05 },
+        moisture_pct: { importance: 0.1215, coefficient: -0.08 },
+        humidity_pct: { importance: 0.0838, coefficient: -0.03 }
       }
     });
   } catch (error) {
