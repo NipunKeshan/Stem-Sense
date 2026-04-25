@@ -402,7 +402,7 @@ export default function ForcastChart() {
 			</div>
 
 			{/* ── Correlation section ── */}
-			{/* <div className="bg-white rounded-lg p-4 w-full text-black shadow-sm">
+			<div className="bg-white rounded-lg p-4 w-full text-black shadow-sm">
 				<h3 className="text-sm font-medium mb-2">Sensor Correlation</h3>
 
 				{corrLoading ? (
@@ -435,7 +435,7 @@ export default function ForcastChart() {
 						</div>
 					</div>
 				)}
-			</div> */}
+			</div>
 		</div>
 	);
 }

@@ -388,60 +388,99 @@ const getPumpState = async (req, res) => {
 // @desc    Get sensor statistics (Last 24h)
 // @route   GET /api/sensors/stats
 // @access  Public
+// @desc    Get sensor statistics (Last 24h)
+// @route   GET /api/sensors/stats
+// @access  Public
 const getSensorStats = async (req, res) => {
   try {
-    // Get data from last 24 hours
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    let data = await SensorData.find({ captured_at: { $gte: twentyFourHoursAgo } }).sort({ captured_at: -1 });
 
-    // Fallback: If no data in 24h, get latest 100 readings (for dev/low activity)
-    if (!data || data.length === 0) {
-      data = await SensorData.find().sort({ captured_at: -1 }).limit(100);
-    }
-
-    if (!data || data.length === 0) {
-      return res.status(200).json({
-        success: true,
-        data: {
-          temperature: { min: 0, max: 0, avg: 0 },
-          humidity: { min: 0, max: 0, avg: 0 },
-          soil_moisture: { min: 0, max: 0, avg: 0 },
-          lux: { min: 0, max: 0, avg: 0 },
-          aqi: { min: 0, max: 0, avg: 0 },
-          tvoc: { min: 0, max: 0, avg: 0 },
-          eco2: { min: 0, max: 0, avg: 0 },
+    const performAggregation = async (matchQuery) => {
+      const result = await SensorData.aggregate([
+        { $match: matchQuery },
+        {
+          $group: {
+            _id: null,
+            temp_min: { $min: "$env.temperature_c" },
+            temp_max: { $max: "$env.temperature_c" },
+            temp_avg: { $avg: "$env.temperature_c" },
+            hum_min: { $min: "$env.humidity_pct" },
+            hum_max: { $max: "$env.humidity_pct" },
+            hum_avg: { $avg: "$env.humidity_pct" },
+            soil_min: { $min: "$soil.moisture_pct" },
+            soil_max: { $max: "$soil.moisture_pct" },
+            soil_avg: { $avg: "$soil.moisture_pct" },
+            lux_min: { $min: "$env.lux" },
+            lux_max: { $max: "$env.lux" },
+            lux_avg: { $avg: "$env.lux" },
+            aqi_min: { $min: "$env.aqi" },
+            aqi_max: { $max: "$env.aqi" },
+            aqi_avg: { $avg: "$env.aqi" },
+            tvoc_min: { $min: "$env.tvoc_ppb" },
+            tvoc_max: { $max: "$env.tvoc_ppb" },
+            tvoc_avg: { $avg: "$env.tvoc_ppb" },
+            eco2_min: { $min: "$env.eco2_ppm" },
+            eco2_max: { $max: "$env.eco2_ppm" },
+            eco2_avg: { $avg: "$env.eco2_ppm" },
+            dli_min: { $min: "$env.dli" }, // Assuming it might be in env if added later
+            dli_max: { $max: "$env.dli" },
+            dli_avg: { $avg: "$env.dli" }
+          }
         }
-      });
-    }
+      ]);
 
-    const calculate = (arr, key, decimals = 1) => {
-      const values = arr.map(d => d[key]).filter(v => v !== undefined && v !== null);
-      if (values.length === 0) return { min: 0, max: 0, avg: 0 };
+      if (!result || result.length === 0) return null;
 
-      const sum = values.reduce((a, b) => a + b, 0);
+      const r = result[0];
       return {
-        min: roundTo(Math.min(...values), decimals),
-        max: roundTo(Math.max(...values), decimals),
-        avg: roundTo(sum / values.length, decimals)
+        temperature: { min: roundTo(r.temp_min, 1), max: roundTo(r.temp_max, 1), avg: roundTo(r.temp_avg, 1) },
+        humidity: { min: roundTo(r.hum_min, 1), max: roundTo(r.hum_max, 1), avg: roundTo(r.hum_avg, 1) },
+        soil_moisture: { min: roundTo(r.soil_min, 1), max: roundTo(r.soil_max, 1), avg: roundTo(r.soil_avg, 1) },
+        lux: { min: roundTo(r.lux_min, 1), max: roundTo(r.lux_max, 1), avg: roundTo(r.lux_avg, 1) },
+        aqi: { min: roundTo(r.aqi_min, 0), max: roundTo(r.aqi_max, 0), avg: roundTo(r.aqi_avg, 0) },
+        tvoc: { min: roundTo(r.tvoc_min, 0), max: roundTo(r.tvoc_max, 0), avg: roundTo(r.tvoc_avg, 0) },
+        eco2: { min: roundTo(r.eco2_min, 0), max: roundTo(r.eco2_max, 0), avg: roundTo(r.eco2_avg, 0) },
+        dli: { min: roundTo(r.dli_min, 2), max: roundTo(r.dli_max, 2), avg: roundTo(r.dli_avg, 2) },
       };
     };
 
-    const stats = {
-      temperature: calculate(data, 'temperature', 1),
-      humidity: calculate(data, 'humidity', 1),
-      soil_moisture: calculate(data, 'soil_moisture', 1),
-      lux: calculate(data, 'lux', 1),
-      aqi: calculate(data, 'aqi', 0),
-      tvoc: calculate(data, 'tvoc', 0),
-      eco2: calculate(data, 'eco2', 0),
-      dli: calculate(data, 'dli', 2),
-    };
+    // 1. Try to get stats for the last 24 hours
+    let stats = await performAggregation({ captured_at: { $gte: twentyFourHoursAgo } });
+
+    // 2. Fallback: If no data in 24h, get stats for the latest 100 records
+    if (!stats) {
+      const latestDocs = await SensorData.find()
+        .sort({ captured_at: -1 })
+        .limit(100)
+        .select('_id');
+      
+      if (latestDocs.length > 0) {
+        const ids = latestDocs.map(d => d._id);
+        stats = await performAggregation({ _id: { $in: ids } });
+      }
+    }
+
+    // 3. Final default if still no data
+    if (!stats) {
+      stats = {
+        temperature: { min: 0, max: 0, avg: 0 },
+        humidity: { min: 0, max: 0, avg: 0 },
+        soil_moisture: { min: 0, max: 0, avg: 0 },
+        lux: { min: 0, max: 0, avg: 0 },
+        aqi: { min: 0, max: 0, avg: 0 },
+        tvoc: { min: 0, max: 0, avg: 0 },
+        eco2: { min: 0, max: 0, avg: 0 },
+        dli: { min: 0, max: 0, avg: 0 },
+      };
+    }
 
     res.status(200).json({ success: true, data: stats });
   } catch (error) {
+    console.error('Stats Error:', error);
     res.status(500).json({ success: false, error: 'Server Error', message: error.message });
   }
 };
+
 
 // GET /api/sensors/pump/today
 // Aggregates consecutive pump-ON datapoints into runs. A gap > 3 minutes
