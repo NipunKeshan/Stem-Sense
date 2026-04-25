@@ -16,7 +16,7 @@ export default function PumpStatusCard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/sensors/pump/today');
+        const res = await axios.get('/api/sensors/pump/today');
         if (res.data && res.data.success && Array.isArray(res.data.runs)) {
           setEvents(res.data.runs);
         } else {
@@ -66,7 +66,7 @@ export default function PumpStatusCard() {
                   <div className="text-right">
                     <div className="inline-flex items-center px-2 py-0.5 rounded-full bg-green-100 text-green-800 text-xs font-medium">ON</div>
                     <div className="text-xs text-gray-500 mt-1">{durationLabel}</div>
-                    </div>
+                  </div>
                 </li>
               );
             })}

@@ -128,11 +128,10 @@ function ScatterPanel({ data }: { data: any[] }) {
 						<button
 							key={i}
 							onClick={() => setActive(i)}
-							className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-								i === safeActive
-									? "bg-sky-600 text-white"
-									: "bg-slate-100 text-slate-500 hover:bg-slate-200"
-							}`}
+							className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${i === safeActive
+								? "bg-sky-600 text-white"
+								: "bg-slate-100 text-slate-500 hover:bg-slate-200"
+								}`}
 						>
 							{TAB_LABELS[i] ?? d.label ?? `Panel ${i + 1}`}
 						</button>
@@ -265,7 +264,7 @@ export default function ForcastChart() {
 		async function fetchForecast() {
 			setLoading(true);
 			try {
-				const res = await fetch("http://localhost:5000/api/ml/stress-forecast");
+				const res = await fetch("/api/ml/stress-forecast");
 				if (!res.ok) throw new Error(`Forecast request failed (${res.status})`);
 				const raw = await res.json();
 				// Handle double-encoded response
@@ -289,11 +288,25 @@ export default function ForcastChart() {
 			setCorrLoading(true);
 			setCorrError(null);
 			try {
-				const cRes = await fetch("http://localhost:5000/api/ml/correlation");
-				if (!cRes.ok) throw new Error(`Correlation request failed (${cRes.status})`);
-				const raw = await cRes.json();
-				// ✅ KEY FIX: backend returns a JSON-encoded string — parse it again
-				const cData = safeParseJSON(raw);
+				// Try ML service first, fall back to Node.js backend
+				let cData = null;
+				try {
+					const cRes = await fetch("/api/ml/correlation");
+					if (cRes.ok) {
+						const raw = await cRes.json();
+						cData = safeParseJSON(raw);
+					}
+				} catch {
+					// ML service unavailable — will fall back below
+				}
+
+				// Fallback: use Node.js backend endpoint (reads from DB directly)
+				if (!cData || !cData.scatter_data) {
+					const fallback = await fetch("/api/sensors/correlation");
+					if (!fallback.ok) throw new Error(`Correlation request failed (${fallback.status})`);
+					cData = await fallback.json();
+				}
+
 				if (!mounted) return;
 				setCorrResp(cData);
 			} catch (e: any) {
@@ -389,7 +402,7 @@ export default function ForcastChart() {
 			</div>
 
 			{/* ── Correlation section ── */}
-			<div className="bg-white rounded-lg p-4 w-full text-black shadow-sm">
+			{/* <div className="bg-white rounded-lg p-4 w-full text-black shadow-sm">
 				<h3 className="text-sm font-medium mb-2">Sensor Correlation</h3>
 
 				{corrLoading ? (
@@ -397,7 +410,7 @@ export default function ForcastChart() {
 				) : corrError ? (
 					<div className="text-destructive text-sm">{corrError}</div>
 				) : (
-					<div className="grid" style={{ gridTemplateColumns: "1fr 320px", gap: 16 }}>
+					<div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-4">
 						<ScatterPanel data={scatterPanels} />
 
 						<div className="p-4 bg-slate-50 rounded-lg">
@@ -422,7 +435,7 @@ export default function ForcastChart() {
 						</div>
 					</div>
 				)}
-			</div>
+			</div> */}
 		</div>
 	);
 }

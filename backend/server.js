@@ -35,7 +35,7 @@ const seedSensorData = async () => {
     if (existingData === 0) {
       const testData = [];
       const now = new Date();
-      
+
       // Generate 24 hours of test data (hourly readings)
       for (let i = 23; i >= 0; i--) {
         const timestamp = new Date(now.getTime() - i * 60 * 60 * 1000);
@@ -53,7 +53,7 @@ const seedSensorData = async () => {
           timestamp
         });
       }
-      
+
       await SensorData.insertMany(testData);
       console.log('Test sensor data seeded (24 hours of readings)');
     }
@@ -78,12 +78,9 @@ const sensorRoutes = require('./routes/sensorRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 app.use('/api/sensors', sensorRoutes);
 app.use('/api/auth', authRoutes);
-<<<<<<< HEAD
 app.use('/api/ml', mlRoutes);
 //app.use('/api/analytics', analyticsRoutes);
-=======
 app.use('/api/chat', chatRoutes);
->>>>>>> origin/main
 
 // Root route
 app.get('/', (req, res) => {

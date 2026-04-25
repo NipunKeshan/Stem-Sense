@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/authMiddleware');
-const { 
-  getSensorData, 
-  addSensorData, 
+const {
+  getSensorData,
+  addSensorData,
   getLatestSensorData,
   getTemperature,
   getHumidity,
@@ -15,13 +15,10 @@ const {
   getSoilMoisture,
   togglePump,
   getPumpState,
-<<<<<<< HEAD
   getTodayPumpOnData,
-  getSensorStats
-=======
   getSensorStats,
-  getAlerts
->>>>>>> origin/main
+  getAlerts,
+  getSensorCorrelation
 } = require('../controllers/sensorController');
 
 router.route('/')
@@ -62,6 +59,10 @@ router.route('/soil-moisture')
 // Alerts endpoint
 router.route('/alerts')
   .get(protect, getAlerts);
+
+// Correlation endpoint (works from historical DB data, no ML service needed)
+router.route('/correlation')
+  .get(protect, getSensorCorrelation);
 
 // Pump control endpoint (frontend)
 router.route('/pump/today')
