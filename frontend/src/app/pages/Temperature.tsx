@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ThermometerSun, Droplets, Download, Loader, Wifi } from 'lucide-react';
+import { ThermometerSun, Droplets, Download, Loader, Wifi, Calendar } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Brush, ReferenceLine, ReferenceArea } from 'recharts';
 import axios from 'axios';
 import { downloadCSV } from '../../utils/export';
@@ -184,6 +184,32 @@ export default function Temperature() {
 
       {/* Charts with Time Range Filter */}
       <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 md:mb-6 gap-3">
+          <h2 className="text-base md:text-lg font-semibold text-gray-800">Environmental Trends</h2>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={downloadReport}
+              className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition-all mr-2"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export
+            </button>
+            <Calendar className="w-4 h-4 text-gray-400" />
+            {(['30m', '1h', '6h', '1d', '7d'] as TimeRange[]).map(range => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  timeRange === range
+                    ? 'bg-[#2E7D32] text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {range === '30m' ? '30 Min' : range === '1h' ? '1 Hour' : range === '6h' ? '6 Hours' : range === '1d' ? '1 Day' : '7 Days'}
+              </button>
+            ))}
+          </div>
+        </div>
           {chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={350}>
               <LineChart data={chartData}>
