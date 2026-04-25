@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "concurrently \"node backend/server.js\" \"conda run -n iot_fix python backend/server.py\" \"conda run -n iot_fix python backend/ml_service/app.py\" \"npm run dev --prefix frontend\""
+    "dev": "concurrently \"node backend/server.js\" \"conda run -n iot python backend/server.py\" \"conda run -n iot_fix python backend/ml_service/app.py\" \"npm run dev --prefix frontend\""
   },
   "repository": {
     "type": "git",
