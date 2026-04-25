@@ -487,59 +487,55 @@ const getSensorStats = async (req, res) => {
 // between samples breaks a run (fixed 3-minute interval).
 const getTodayPumpOnData = async (req, res) => {
   try {
-    const gapMs = 3 * 60 * 1000; // fixed 3 minutes
-
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
-    const data = await SensorData.find({ captured_at: { $gte: startOfDay } }).sort({ captured_at: 1 });
+
+    const data = await SensorData.find({ captured_at: { $gte: startOfDay } })
+      .select('captured_at actuators')
+      .sort({ captured_at: 1 })
+      .lean();
 
     if (!data || data.length === 0) {
-      return res.status(200).json({ success: true, runs: [], total_runs: 0 });
+      return res.status(200).json({ success: true, runs: [] });
     }
-
-    // Normalize points to [{ ts: Date, pump_on: boolean }]
-    const points = data
-      .map(d => ({
-        ts: d.captured_at ? new Date(d.captured_at) : null,
-        pump_on: d.actuators && typeof d.actuators.pump_on !== 'undefined'
-          ? Boolean(d.actuators.pump_on)
-          : (typeof d.pump_state !== 'undefined' ? d.pump_state === 1 : false)
-      }))
-      .filter(p => p.ts !== null)
-      .sort((a, b) => a.ts - b.ts);
 
     const runs = [];
     let current = null;
+    const gapMs = 3 * 60 * 1000; 
 
-    for (const p of points) {
-      if (p.pump_on) {
+    for (const d of data) {
+      const ts = d.captured_at ? new Date(d.captured_at).getTime() : null;
+      if (!ts) continue;
+
+      const isPumpOn = d.actuators && d.actuators.pump_on === true;
+
+      if (isPumpOn) {
         if (!current) {
-          current = { start: p.ts, end: p.ts, count: 1 };
+          current = { start: ts, end: ts, count: 1 };
         } else {
-          const diff = p.ts - current.end;
+          const diff = ts - current.end;
           if (diff <= gapMs) {
-            current.end = p.ts;
+            current.end = ts;
             current.count += 1;
           } else {
-            current.duration_ms = current.end - current.start;
+            const duration_ms = current.end - current.start;
             runs.push({
-              start: current.start,
-              end: current.end,
-              duration_ms: current.duration_ms,
-              duration_min: roundTo(current.duration_ms / 60000, 2),
+              start: new Date(current.start).toISOString(),
+              end: new Date(current.end).toISOString(),
+              duration_ms,
+              duration_min: roundTo(duration_ms / 60000, 2),
               sample_count: current.count
             });
-            current = { start: p.ts, end: p.ts, count: 1 };
+            current = { start: ts, end: ts, count: 1 };
           }
         }
       } else if (current) {
-        // close current run on encountering pump_off
-        current.duration_ms = current.end - current.start;
+        const duration_ms = current.end - current.start;
         runs.push({
-          start: current.start,
-          end: current.end,
-          duration_ms: current.duration_ms,
-          duration_min: roundTo(current.duration_ms / 60000, 2),
+          start: new Date(current.start).toISOString(),
+          end: new Date(current.end).toISOString(),
+          duration_ms,
+          duration_min: roundTo(duration_ms / 60000, 2),
           sample_count: current.count
         });
         current = null;
@@ -547,24 +543,23 @@ const getTodayPumpOnData = async (req, res) => {
     }
 
     if (current) {
-      current.duration_ms = current.end - current.start;
+      const duration_ms = current.end - current.start;
       runs.push({
-        start: current.start,
-        end: current.end,
-        duration_ms: current.duration_ms,
-        duration_min: roundTo(current.duration_ms / 60000, 2),
+        start: new Date(current.start).toISOString(),
+        end: new Date(current.end).toISOString(),
+        duration_ms,
+        duration_min: roundTo(duration_ms / 60000, 2),
         sample_count: current.count
       });
     }
 
-    const totalMinutes = roundTo(runs.reduce((s, r) => s + (r.duration_ms || 0), 0) / 60000, 2);
-
     res.status(200).json({
       success: true,
-      runs
+      runs: runs.reverse()
     });
   } catch (error) {
-    console.error(error);
+    console.error('[PumpToday] Error:', error);
+    res.status(500).json({ success: false, error: 'Server Error', message: error.message });
   }
 };
 // @desc    Get sensor data
