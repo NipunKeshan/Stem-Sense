@@ -37,6 +37,7 @@ export default function Overview() {
   const [loading, setLoading] = useState(true);
   const [resDataDesired, setResDataDesired] = useState<number | null>(null);
   const [timeRange, setTimeRange] = useState<TimeRange>('30m');
+  const [mlActive, setMlActive] = useState<{ accuracy: number } | null>(null);
   const [visibleSeries, setVisibleSeries] = useState({
     moisture: true,
     temp: true,
@@ -102,6 +103,19 @@ export default function Overview() {
       clearInterval(inv);
     };
   }, [timeRange]);
+
+  // Fetch ML status once on mount
+  useEffect(() => {
+    const fetchML = async () => {
+      try {
+        const res = await axios.get('/api/sensors/ml-status');
+        if (res.data.success) {
+          setMlActive({ accuracy: res.data.model.accuracy });
+        }
+      } catch { setMlActive(null); }
+    };
+    fetchML();
+  }, []);
 
   const getAQILabel = (aqi: number) => {
     if (aqi <= 1) return 'Excellent';
@@ -377,6 +391,12 @@ export default function Overview() {
               <span className="text-xs md:text-sm text-gray-600">Network Connection</span>
               <span className={`text-xs md:text-sm font-medium ${isRecentData ? 'text-green-600' : 'text-red-500'}`}>
                 ● {isRecentData ? 'Connected' : 'Disconnected'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs md:text-sm text-gray-600">ML Engine</span>
+              <span className={`text-xs md:text-sm font-medium ${mlActive ? 'text-purple-600' : 'text-gray-400'}`}>
+                ● {mlActive ? `Active (${(mlActive.accuracy * 100).toFixed(0)}% acc)` : 'Unavailable'}
               </span>
             </div>
           </div>

@@ -1,6 +1,7 @@
 const SensorData = require('../models/SensorData');
 const PumpCommand = require('../models/PumpCommand');
 const SystemAlert = require('../models/Alert');
+const { getPumpDecision } = require('../ml/inferenceService');
 
 const roundTo = (val, decimals) => {
   if (val === undefined || val === null) return val;
@@ -67,7 +68,7 @@ const getLatestSensorData = async (req, res) => {
   }
 };
 
-// @desc    Add new sensor data
+// @desc    Add new sensor data (with ML pump decision)
 // @route   POST /api/sensors
 // @access  Public
 const addSensorData = async (req, res) => {
@@ -86,7 +87,54 @@ const addSensorData = async (req, res) => {
       manual_override
     } = req.body;
 
-    // Create sensor record
+    // ── ML Pump Decision ──────────────────────────────────────────
+    let mlDecision = null;
+    let finalPumpOn = pump_state === 1;
+
+    // Check if user manually toggled pump in the last 10 minutes
+    const pumpCmd = await PumpCommand.findOne({ _id: 'global' });
+    const MANUAL_WINDOW_MS = 10 * 60 * 1000;
+    const isManualOverride = manual_override ||
+      (pumpCmd?.source === 'manual' &&
+       pumpCmd?.updated_at &&
+       (Date.now() - new Date(pumpCmd.updated_at).getTime()) < MANUAL_WINDOW_MS);
+
+    if (!isManualOverride) {
+      try {
+        // Map ESP8266 field names → model feature names
+        mlDecision = await getPumpDecision({
+          temperature_c: temperature,
+          humidity_pct:  humidity,
+          tvoc_ppb:      tvoc,
+          eco2_ppm:      eco2,
+          aqi:           aqi,
+          lux:           lux,
+          moisture_pct:  soil_moisture,
+        });
+        finalPumpOn = mlDecision.pump_state === 1;
+
+        // Persist ML decision so ESP8266 picks it up via GET /command
+        await PumpCommand.findOneAndUpdate(
+          { _id: 'global' },
+          { pump: mlDecision.pump_state, updated_at: new Date(), source: 'ml' },
+          { upsert: true }
+        );
+
+        // Log an auto alert for the ML decision
+        await SystemAlert.create({
+          severity: 'info',
+          message: `ML: Pump ${mlDecision.pump_state ? 'ON' : 'OFF'} (${(mlDecision.confidence * 100).toFixed(1)}% confidence)`,
+          type: 'auto'
+        });
+      } catch (mlErr) {
+        console.error('[ML] Inference failed, using device pump_state:', mlErr.message);
+        // Fall back to the pump_state the device sent
+      }
+    } else {
+      console.log('[ML] Skipped — manual override active');
+    }
+
+    // ── Save sensor record ────────────────────────────────────────
     const sensorData = await SensorData.create({
       sensor_id: device_id,
       captured_at: new Date(),
@@ -103,13 +151,16 @@ const addSensorData = async (req, res) => {
         moisture_pct: soil_moisture
       },
       actuators: {
-        pump_on: pump_state === 1
+        pump_on: finalPumpOn
       }
     });
 
     res.status(201).json({
       success: true,
-      data: sensorData
+      data: sensorData,
+      ml_decision: mlDecision ? mlDecision.pump_state : null,
+      ml_confidence: mlDecision ? mlDecision.confidence : null,
+      manual_override: !!isManualOverride
     });
   } catch (error) {
     console.error(error);
@@ -290,7 +341,8 @@ const togglePump = async (req, res) => {
       { _id: 'global' },
       { 
         pump: pump, 
-        updated_at: new Date() 
+        updated_at: new Date(),
+        source: 'manual'
       },
       { upsert: true, returnDocument: 'after' }
     );
@@ -464,6 +516,40 @@ const getAlerts = async (req, res) => {
   }
 };
 
+// @desc    Get ML model status and metadata
+// @route   GET /api/sensors/ml-status
+// @access  Public
+const getMLStatus = async (req, res) => {
+  try {
+    const meta = require('../ml/model_meta.json');
+    const command = await PumpCommand.findOne({ _id: 'global' });
+
+    const MANUAL_WINDOW_MS = 10 * 60 * 1000;
+    const isManualOverride = command?.source === 'manual' &&
+      command?.updated_at &&
+      (Date.now() - new Date(command.updated_at).getTime()) < MANUAL_WINDOW_MS;
+
+    res.status(200).json({
+      success: true,
+      model: {
+        accuracy: meta.performance.test_accuracy,
+        roc_auc: meta.performance.roc_auc,
+        features: meta.all_features.length,
+        size_kb: meta.onnx_meta.size_kb,
+        top_feature: Object.keys(meta.feature_importance)[0],
+      },
+      mode: isManualOverride ? 'manual' : 'ml',
+      last_command: command ? {
+        pump: command.pump,
+        source: command.source || 'unknown',
+        updated_at: command.updated_at
+      } : null,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Server Error', message: error.message });
+  }
+};
+
 module.exports = {
   getSensorData,
   addSensorData,
@@ -479,5 +565,6 @@ module.exports = {
   togglePump,
   getPumpState,
   getSensorStats,
-  getAlerts
+  getAlerts,
+  getMLStatus
 };

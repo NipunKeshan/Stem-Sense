@@ -1,8 +1,24 @@
 import { useState, useEffect } from 'react';
-import { Power, Droplet, AlertTriangle } from 'lucide-react';
+import { Power, Droplet, AlertTriangle, Brain } from 'lucide-react';
 import axios from 'axios';
 
 const SOIL_SAFETY_THRESHOLD = 95;
+
+interface MLStatus {
+  model: {
+    accuracy: number;
+    roc_auc: number;
+    features: number;
+    size_kb: number;
+    top_feature: string;
+  };
+  mode: 'ml' | 'manual';
+  last_command: {
+    pump: number;
+    source: string;
+    updated_at: string;
+  } | null;
+}
 
 export default function IrrigationControl() {
   const [pumpStatus, setPumpStatus] = useState(false);
@@ -11,6 +27,7 @@ export default function IrrigationControl() {
   const [isHardwareLocked, setIsHardwareLocked] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [lastUpdate, setLastUpdate] = useState('');
+  const [mlStatus, setMlStatus] = useState<MLStatus | null>(null);
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -34,6 +51,14 @@ export default function IrrigationControl() {
           setPumpStatus(resPump.data.desired_pump_state === 1);
           setIsHardwareLocked(resPump.data.manual_override === 1);
         }
+
+        // Fetch ML status
+        try {
+          const resMl = await axios.get('/api/sensors/ml-status');
+          if (resMl.data.success) {
+            setMlStatus(resMl.data);
+          }
+        } catch { /* ML status is non-critical */ }
       } catch (err) {
         console.error('Error fetching pump status', err);
       }
@@ -161,7 +186,44 @@ export default function IrrigationControl() {
             <span className="font-medium text-gray-800">{lastUpdate || '...'}</span>
           </div>
         </div>
+
+        {/* ML Status Panel */}
+        {mlStatus && (
+          <div className="pt-3 md:pt-4 border-t border-gray-200">
+            <div className="flex items-center gap-2 mb-2">
+              <Brain className="w-4 h-4 text-purple-600" />
+              <span className="text-xs md:text-sm font-semibold text-gray-800">ML Pump Control</span>
+              <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                mlStatus.mode === 'ml'
+                  ? 'bg-purple-100 text-purple-700'
+                  : 'bg-amber-100 text-amber-700'
+              }`}>
+                {mlStatus.mode === 'ml' ? 'Auto' : 'Manual Override'}
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-500">Model accuracy:</span>
+                <span className="font-medium text-gray-700">{(mlStatus.model.accuracy * 100).toFixed(0)}%</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-500">Last decision:</span>
+                <span className={`font-medium ${mlStatus.last_command?.pump ? 'text-green-600' : 'text-gray-500'}`}>
+                  {mlStatus.last_command
+                    ? `Pump ${mlStatus.last_command.pump ? 'ON' : 'OFF'} (${mlStatus.last_command.source})`
+                    : '—'}
+                </span>
+              </div>
+              {mlStatus.mode === 'manual' && (
+                <p className="text-[10px] text-amber-600 mt-1">
+                  ML auto-control resumes 10 min after last manual toggle
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
+

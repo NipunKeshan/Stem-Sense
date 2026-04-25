@@ -1,0 +1,136 @@
+{
+  "model_file": "pump_model.onnx",
+  "raw_features": [
+    "temperature_c",
+    "humidity_pct",
+    "tvoc_ppb",
+    "eco2_ppm",
+    "aqi",
+    "lux",
+    "moisture_pct"
+  ],
+  "engineered_features": [
+    "vpd",
+    "temp_moisture_ratio",
+    "heat_load"
+  ],
+  "all_features": [
+    "temperature_c",
+    "humidity_pct",
+    "tvoc_ppb",
+    "eco2_ppm",
+    "aqi",
+    "lux",
+    "moisture_pct",
+    "vpd",
+    "temp_moisture_ratio",
+    "heat_load"
+  ],
+  "target": "pump_state",
+  "classes": [
+    0,
+    1
+  ],
+  "class_labels": {
+    "0": "PUMP_OFF",
+    "1": "PUMP_ON"
+  },
+  "hyperparameters": {
+    "n_estimators": 200,
+    "max_depth": 6,
+    "min_samples_leaf": 1,
+    "class_weight": "balanced"
+  },
+  "performance": {
+    "test_accuracy": 0.74,
+    "roc_auc": 0.715781,
+    "cv_mean": 0.714,
+    "cv_std": 0.033823
+  },
+  "feature_importance": {
+    "temperature_c": 0.19993,
+    "temp_moisture_ratio": 0.199504,
+    "moisture_pct": 0.121594,
+    "aqi": 0.094425,
+    "humidity_pct": 0.083899,
+    "vpd": 0.081605,
+    "eco2_ppm": 0.062174,
+    "tvoc_ppb": 0.056874,
+    "lux": 0.050554,
+    "heat_load": 0.049439
+  },
+  "feature_stats": {
+    "temperature_c": {
+      "min": 15.12223098,
+      "max": 34.9637812,
+      "mean": 25.16391249122,
+      "std": 5.746169448482673
+    },
+    "humidity_pct": {
+      "min": 40.10841488,
+      "max": 84.94599073,
+      "mean": 61.48692928556,
+      "std": 13.06370040453215
+    },
+    "tvoc_ppb": {
+      "min": 100.0355205,
+      "max": 249.8773511,
+      "mean": 176.29200212760003,
+      "std": 43.95482276453118
+    },
+    "eco2_ppm": {
+      "min": 400.1074879,
+      "max": 449.7583452,
+      "mean": 425.07476424439994,
+      "std": 13.970803905815265
+    },
+    "aqi": {
+      "min": 20.06277215,
+      "max": 79.83004323,
+      "mean": 51.20035033546,
+      "std": 17.461426497707635
+    },
+    "lux": {
+      "min": 0.001873937,
+      "max": 1496.763103,
+      "mean": 719.1467309544458,
+      "std": 431.32634828771035
+    },
+    "moisture_pct": {
+      "min": 30.13948086,
+      "max": 79.98164081,
+      "mean": 54.723306465760004,
+      "std": 14.36039015132966
+    },
+    "vpd": {
+      "min": 2.5665284033386553,
+      "max": 20.284124331951514,
+      "mean": 9.688731005558253,
+      "std": 4.014968357107159
+    },
+    "temp_moisture_ratio": {
+      "min": 0.20324709184170917,
+      "max": 1.110348828300196,
+      "mean": 0.49473597872821123,
+      "std": 0.1820041073806315
+    },
+    "heat_load": {
+      "min": 4.453324464816328e-06,
+      "max": 17.054243395779913,
+      "mean": 4.532799040710058,
+      "std": 3.4090528106612443
+    }
+  },
+  "onnx_meta": {
+    "input_name": "float_input",
+    "label_name": "label",
+    "prob_name": "probabilities",
+    "opset": 12,
+    "size_kb": 439.42
+  },
+  "feature_engineering": {
+    "vpd": "temperature_c * (1 - humidity_pct / 100)",
+    "temp_moisture_ratio": "temperature_c / (moisture_pct + 0.001)",
+    "heat_load": "temperature_c * (1 - humidity_pct / 100) * (lux / 1500)"
+  }
+}
