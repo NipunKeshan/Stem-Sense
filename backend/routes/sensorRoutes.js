@@ -64,7 +64,7 @@ router.route('/alerts')
 
 // Correlation endpoint (works from historical DB data, no ML service needed)
 router.route('/correlation')
-  .get(protect, getSensorCorrelation);
+  .get(getSensorCorrelation);
 
 // Pump control endpoint (frontend)
 router.route('/pump/today')
