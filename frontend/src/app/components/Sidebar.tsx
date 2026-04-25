@@ -18,7 +18,7 @@ import {
 
 const menuItems = [
   { path: '/', label: 'Overview', icon: LayoutDashboard, permission: 'Overview' },
-  { path: '/monitoring', label: 'Analysis', icon: ListChecks, permission: 'Monitoring' },
+  { path: '/monitoring', label: 'Monitoring', icon: ListChecks, permission: 'Monitoring' },
   { path: '/soil-moisture', label: 'Soil Moisture', icon: Droplets, permission: 'Soil Moisture' },
   { path: '/temperature', label: 'Temperature & Humidity', icon: ThermometerSun, permission: 'Temperature' },
   { path: '/air-quality', label: 'Air Quality', icon: Wind, permission: 'Air Quality' },
