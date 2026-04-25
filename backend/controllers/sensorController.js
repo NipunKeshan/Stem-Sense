@@ -11,8 +11,9 @@ const roundTo = (val, decimals) => {
 // @desc    Get all sensor data
 // @route   GET /api/sensors
 // @access  Public
-const getSensorData = async (req, res) => {
+const getPaginatedSensorData = async (req, res) => {
   try {
+    const { page = 1, limit = 50 } = req.query; // Default to page 1, 50 items per page
     const timeRange = req.query.timeRange || '30m';
     const query = {};
     const now = new Date();
@@ -26,18 +27,19 @@ const getSensorData = async (req, res) => {
     } else if (timeRange === '6h') {
       const cutoff = new Date(now.getTime() - 6 * 60 * 60 * 1000);
       query.captured_at = { $gte: cutoff };
-    } else if (timeRange === '1d' || timeRange === '24h') { // 24h fallback
+    } else if (timeRange === '1d' || timeRange === '24h') {
       const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       query.captured_at = { $gte: cutoff };
     } else if (timeRange === '7d') {
       const cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       query.captured_at = { $gte: cutoff };
     }
-    // If 'all', we don't set a date filter, but we will limit it below
 
     const data = await SensorData.find(query)
       .sort({ captured_at: -1 })
-      .limit(timeRange === 'all' ? 2000 : 0); // Hard limit 2000 for 'all' to prevent crashing
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
+      .select('sensor_id captured_at env soil actuators'); // Use projection to fetch only required fields
 
     const command = await PumpCommand.findOne({ _id: 'global' });
     res.status(200).json({ 
@@ -551,7 +553,7 @@ const getMLStatus = async (req, res) => {
 };
 
 module.exports = {
-  getSensorData,
+  getPaginatedSensorData,
   addSensorData,
   getLatestSensorData,
   getTemperature,

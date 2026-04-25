@@ -42,4 +42,6 @@ sensorDataSchema.virtual('pump_state').get(function() { return this.actuators?.p
 sensorDataSchema.virtual('timestamp').get(function() { return this.captured_at; });
 sensorDataSchema.virtual('device_id').get(function() { return this.sensor_id; });
 
+sensorDataSchema.index({ captured_at: -1 });
+
 module.exports = mongoose.model('SensorData', sensorDataSchema);

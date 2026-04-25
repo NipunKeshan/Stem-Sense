@@ -17,7 +17,8 @@ const {
   getPumpState,
   getSensorStats,
   getAlerts,
-  getMLStatus
+  getMLStatus,
+  getPaginatedSensorData
 } = require('../controllers/sensorController');
 
 router.route('/')
@@ -67,6 +68,10 @@ router.route('/pump')
 // ML model status endpoint
 router.route('/ml-status')
   .get(protect, getMLStatus);
+
+// Paginated sensor data endpoint
+router.route('/paginated')
+  .get(protect, getPaginatedSensorData);
 
 module.exports = router;
 
