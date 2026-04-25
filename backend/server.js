@@ -6,7 +6,8 @@ const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const User = require('./models/User');
 const SensorData = require('./models/SensorData');
-
+const mlRoutes = require('./routes/mlRoutes');
+//const analyticsRoutes = require('./routes/analyticsRoutes');
 // Connect to database
 connectDB();
 
@@ -77,7 +78,12 @@ const sensorRoutes = require('./routes/sensorRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 app.use('/api/sensors', sensorRoutes);
 app.use('/api/auth', authRoutes);
+<<<<<<< HEAD
+app.use('/api/ml', mlRoutes);
+//app.use('/api/analytics', analyticsRoutes);
+=======
 app.use('/api/chat', chatRoutes);
+>>>>>>> origin/main
 
 // Root route
 app.get('/', (req, res) => {
@@ -89,3 +95,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+

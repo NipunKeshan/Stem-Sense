@@ -15,8 +15,13 @@ const {
   getSoilMoisture,
   togglePump,
   getPumpState,
+<<<<<<< HEAD
+  getTodayPumpOnData,
+  getSensorStats
+=======
   getSensorStats,
   getAlerts
+>>>>>>> origin/main
 } = require('../controllers/sensorController');
 
 router.route('/')
@@ -59,6 +64,9 @@ router.route('/alerts')
   .get(protect, getAlerts);
 
 // Pump control endpoint (frontend)
+router.route('/pump/today')
+  .get(getTodayPumpOnData);
+
 router.route('/pump')
   .get(protect, getPumpState)
   .post(protect, togglePump);

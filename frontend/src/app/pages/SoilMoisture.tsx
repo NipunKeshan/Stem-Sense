@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import MoistureStatusCard from '../components/MoistureStatusCard';
 import MoistureTrendChart from '../components/MoistureTrendChart';
-import IrrigationControl from '../components/IrrigationControl';
+import PumpStatusCard from '../components/pumpStatusCard';
 import StatCard from '../components/StatCard';
 import { Droplets, TrendingUp } from 'lucide-react';
 import axios from 'axios';
@@ -50,10 +50,12 @@ export default function SoilMoisture() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-        <MoistureStatusCard />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 items-stretch">
         <div className="lg:col-span-2">
-          <IrrigationControl />
+          <MoistureStatusCard />
+        </div>
+        <div className="hidden lg:block">
+          <PumpStatusCard />
         </div>
       </div>
 
