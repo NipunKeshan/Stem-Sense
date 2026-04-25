@@ -567,6 +567,56 @@ const getTodayPumpOnData = async (req, res) => {
     console.error(error);
   }
 };
+// @desc    Get sensor data
+// @route   GET /api/sensors
+// @access  Public
+const getSensorData = async (req, res) => {
+  try {
+    const data = await SensorData.find().sort({ captured_at: -1 }).limit(100);
+    res.status(200).json({ success: true, count: data.length, data });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Server Error', message: error.message });
+  }
+};
+
+// @desc    Get ML model status
+// @route   GET /api/sensors/ml-status
+// @access  Public
+const getMLStatus = async (req, res) => {
+  try {
+    // Basic status info
+    res.status(200).json({
+      success: true,
+      status: 'operational',
+      model_info: {
+        name: 'StemSense Pump Decision Model',
+        version: '3.0',
+        engine: 'ONNX Runtime'
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Server Error', message: error.message });
+  }
+};
+
+// @desc    Get sensor correlation data
+// @route   GET /api/sensors/correlation
+// @access  Public
+const getSensorCorrelation = async (req, res) => {
+  try {
+    // Placeholder for correlation data
+    res.status(200).json({
+      success: true,
+      message: 'Correlation analysis is currently based on historical trends.',
+      data: {
+        info: 'Full correlation matrix available in ML service'
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Server Error', message: error.message });
+  }
+};
+
 // @desc    Get all alerts with pagination and filtering
 // @route   GET /api/sensors/alerts
 // @access  Public
@@ -643,6 +693,7 @@ const getAlerts = async (req, res) => {
 
 module.exports = {
   getPaginatedSensorData,
+  getSensorData,
   addSensorData,
   getLatestSensorData,
   getTemperature,
@@ -655,6 +706,9 @@ module.exports = {
   getSoilMoisture,
   togglePump,
   getPumpState,
+  getTodayPumpOnData,
   getSensorStats,
-  getAlerts
+  getAlerts,
+  getMLStatus,
+  getSensorCorrelation
 };
