@@ -43,23 +43,32 @@ export default function AirQuality() {
         
         // Fetch chart data
         const resData = await axios.get('/api/sensors', { params: { timeRange } });
-        if (resData.data.success && resData.data.data && resData.data.data.length > 0) {
+        if (resData.data.success && resData.data.data) {
           const allData = resData.data.data;
-          setLatestData(allData[0]);
+          if (allData.length > 0) {
+            setLatestData(allData[0]);
 
-          const reversed = [...allData].reverse();
-          const filtered = reversed;
-
-          const processedData = filtered.map((item: any) => {
-            const d = new Date(item.timestamp);
-            return {
-              time: `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`,
-              aqi: item.aqi || 0,
-              tvoc: item.tvoc || 0,
-              eco2: item.eco2 || 0,
-            };
-          });
-          setChartData(processedData);
+            const reversed = [...allData].reverse();
+            const processedData = reversed.map((item: any) => {
+              const d = new Date(item.timestamp);
+              return {
+                time: `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`,
+                aqi: item.aqi || 0,
+                tvoc: item.tvoc || 0,
+                eco2: item.eco2 || 0,
+              };
+            });
+            setChartData(processedData);
+          } else {
+            // Fetch fallback latest data if time range is empty
+            try {
+              const latestRes = await axios.get('/api/sensors/latest');
+              if (latestRes.data.success && latestRes.data.data) {
+                setLatestData(latestRes.data.data);
+              }
+            } catch (e) {}
+            setChartData([]); // Clear chart data
+          }
         }
 
         // Fetch stats from backend
@@ -162,8 +171,7 @@ export default function AirQuality() {
       </div>
 
       {/* Trend Chart */}
-      {chartData.length > 0 && (
-        <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
+      <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 md:mb-6 gap-3">
             <h2 className="text-base md:text-lg font-semibold text-gray-800">Air Quality Trends</h2>
             <div className="flex items-center gap-2">
@@ -190,43 +198,48 @@ export default function AirQuality() {
               ))}
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={350}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.5} />
-              <XAxis dataKey="time" stroke="#6B7280" style={{ fontSize: '10px' }} />
-              <YAxis
-                yAxisId="left"
-                stroke="#6B7280"
-                style={{ fontSize: '10px' }}
-                label={{ value: 'AQI', angle: -90, position: 'insideLeft', style: { fontSize: '10px' } }}
-              />
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                stroke="#6B7280"
-                style={{ fontSize: '10px' }}
-                label={{ value: 'TVOC / eCO₂', angle: 90, position: 'insideRight', style: { fontSize: '10px' } }}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'white',
-                  border: '1px solid #E5E7EB',
-                  borderRadius: '8px',
-                  padding: '8px 12px',
-                  fontSize: '11px',
-                }}
-              />
-              <Legend wrapperStyle={{ fontSize: '12px' }} />
-              <ReferenceLine yAxisId="right" y={600} stroke="#ef4444" strokeDasharray="5 5" strokeOpacity={0.5}
-                label={{ value: 'CO₂ 600ppm', position: 'right', fill: '#ef4444', fontSize: 9 }} />
-              <Line yAxisId="left" type="monotone" dataKey="aqi" stroke="#22c55e" strokeWidth={2} dot={false} name="AQI" />
-              <Line yAxisId="right" type="monotone" dataKey="tvoc" stroke="#a855f7" strokeWidth={2} dot={false} name="TVOC (ppb)" />
-              <Line yAxisId="right" type="monotone" dataKey="eco2" stroke="#ef4444" strokeWidth={2} dot={false} name="eCO₂ (ppm)" />
-              <Brush dataKey="time" height={25} stroke="#22c55e" travellerWidth={8} />
-            </LineChart>
-          </ResponsiveContainer>
+          {chartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={350}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.5} />
+                <XAxis dataKey="time" stroke="#6B7280" style={{ fontSize: '10px' }} />
+                <YAxis
+                  yAxisId="left"
+                  stroke="#6B7280"
+                  style={{ fontSize: '10px' }}
+                  label={{ value: 'AQI', angle: -90, position: 'insideLeft', style: { fontSize: '10px' } }}
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  stroke="#6B7280"
+                  style={{ fontSize: '10px' }}
+                  label={{ value: 'TVOC / eCO₂', angle: 90, position: 'insideRight', style: { fontSize: '10px' } }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #E5E7EB',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    fontSize: '11px',
+                  }}
+                />
+                <Legend wrapperStyle={{ fontSize: '12px' }} />
+                <ReferenceLine yAxisId="right" y={600} stroke="#ef4444" strokeDasharray="5 5" strokeOpacity={0.5}
+                  label={{ value: 'CO₂ 600ppm', position: 'right', fill: '#ef4444', fontSize: 9 }} />
+                <Line yAxisId="left" type="monotone" dataKey="aqi" stroke="#22c55e" strokeWidth={2} dot={false} name="AQI" />
+                <Line yAxisId="right" type="monotone" dataKey="tvoc" stroke="#a855f7" strokeWidth={2} dot={false} name="TVOC (ppb)" />
+                <Line yAxisId="right" type="monotone" dataKey="eco2" stroke="#ef4444" strokeWidth={2} dot={false} name="eCO₂ (ppm)" />
+                <Brush dataKey="time" height={25} stroke="#22c55e" travellerWidth={8} />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-[350px] bg-gray-50 rounded-lg border border-dashed border-gray-200">
+              <p className="text-gray-500 text-sm">No data available in this time range.</p>
+            </div>
+          )}
         </div>
-      )}
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">

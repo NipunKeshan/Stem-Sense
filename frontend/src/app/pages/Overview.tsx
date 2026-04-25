@@ -58,6 +58,14 @@ export default function Overview() {
           
           if (rawData.length > 0) {
             setLatestData(rawData[0]);
+          } else {
+            // Fetch fallback latest data if time range is empty
+            try {
+              const latestRes = await axios.get('/api/sensors/latest');
+              if (latestRes.data.success && latestRes.data.data) {
+                setLatestData(latestRes.data.data);
+              }
+            } catch (e) {}
           }
 
           const reversed = [...rawData].reverse();
@@ -252,8 +260,9 @@ export default function Overview() {
           ))}
         </div>
 
-        <ResponsiveContainer width="100%" height={300}>
-          <AreaChart data={data}>
+        {data.length > 0 ? (
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart data={data}>
             <defs>
               <linearGradient id="colorMoisture" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#2E7D32" stopOpacity={0.2}/>
@@ -352,6 +361,11 @@ export default function Overview() {
             <Brush dataKey="time" height={25} stroke="#2E7D32" travellerWidth={8} />
           </AreaChart>
         </ResponsiveContainer>
+        ) : (
+          <div className="flex items-center justify-center h-[300px] bg-gray-50 rounded-lg border border-dashed border-gray-200">
+            <p className="text-gray-500 text-sm">No data available in this time range.</p>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">

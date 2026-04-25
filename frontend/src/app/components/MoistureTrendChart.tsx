@@ -69,58 +69,64 @@ export default function MoistureTrendChart({ timeRange, onTimeRangeChange }: Moi
         </div>
       </div>
       
-      <ResponsiveContainer width="100%" height={250} className="md:h-[300px]">
-        <LineChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.5} />
-          <XAxis 
-            dataKey="time" 
-            stroke="#6B7280"
-            style={{ fontSize: '10px' }}
-            className="md:text-xs"
-          />
-          <YAxis 
-            stroke="#6B7280"
-            style={{ fontSize: '10px' }}
-            className="md:text-xs"
-            domain={[0, 100]}
-            label={{ value: 'Moisture %', angle: -90, position: 'insideLeft', style: { fontSize: '10px' } }}
-          />
-          <Tooltip 
-            contentStyle={{
-              backgroundColor: 'white',
-              border: '1px solid #E5E7EB',
-              borderRadius: '8px',
-              padding: '8px 12px',
-              fontSize: '12px'
-            }}
-            formatter={(value: number) => [`${value}%`, 'Moisture']}
-          />
-          <ReferenceArea y1={40} y2={70} fill="#2E7D32" fillOpacity={0.05} 
-                label={{ value: 'Optimal', position: 'insideTopLeft', fill: '#2E7D32', fontSize: 9 }} />
-          <ReferenceLine 
-            y={30} 
-            stroke="#E53935" 
-            strokeDasharray="5 5" 
-            label={{ value: 'Min', position: 'right', fill: '#E53935', fontSize: 10 }}
-          />
-          <ReferenceLine 
-            y={95} 
-            stroke="#B71C1C" 
-            strokeDasharray="5 5" 
-            label={{ value: 'Safety', position: 'right', fill: '#B71C1C', fontSize: 10 }}
-          />
-          <Line 
-            type="monotone" 
-            dataKey="moisture" 
-            stroke="#2E7D32" 
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 5 }}
-            name="Moisture %"
-          />
-          <Brush dataKey="time" height={25} stroke="#2E7D32" travellerWidth={8} />
-        </LineChart>
-      </ResponsiveContainer>
+      {chartData.length > 0 ? (
+        <ResponsiveContainer width="100%" height={250} className="md:h-[300px]">
+          <LineChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.5} />
+            <XAxis 
+              dataKey="time" 
+              stroke="#6B7280"
+              style={{ fontSize: '10px' }}
+              className="md:text-xs"
+            />
+            <YAxis 
+              stroke="#6B7280"
+              style={{ fontSize: '10px' }}
+              className="md:text-xs"
+              domain={[0, 100]}
+              label={{ value: 'Moisture %', angle: -90, position: 'insideLeft', style: { fontSize: '10px' } }}
+            />
+            <Tooltip 
+              contentStyle={{
+                backgroundColor: 'white',
+                border: '1px solid #E5E7EB',
+                borderRadius: '8px',
+                padding: '8px 12px',
+                fontSize: '12px'
+              }}
+              formatter={(value: number) => [`${value}%`, 'Moisture']}
+            />
+            <ReferenceArea y1={40} y2={70} fill="#2E7D32" fillOpacity={0.05} 
+                  label={{ value: 'Optimal', position: 'insideTopLeft', fill: '#2E7D32', fontSize: 9 }} />
+            <ReferenceLine 
+              y={30} 
+              stroke="#E53935" 
+              strokeDasharray="5 5" 
+              label={{ value: 'Min', position: 'right', fill: '#E53935', fontSize: 10 }}
+            />
+            <ReferenceLine 
+              y={95} 
+              stroke="#B71C1C" 
+              strokeDasharray="5 5" 
+              label={{ value: 'Safety', position: 'right', fill: '#B71C1C', fontSize: 10 }}
+            />
+            <Line 
+              type="monotone" 
+              dataKey="moisture" 
+              stroke="#2E7D32" 
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 5 }}
+              name="Moisture %"
+            />
+            <Brush dataKey="time" height={25} stroke="#2E7D32" travellerWidth={8} />
+          </LineChart>
+        </ResponsiveContainer>
+      ) : (
+        <div className="flex items-center justify-center h-[250px] md:h-[300px] bg-gray-50 rounded-lg border border-dashed border-gray-200">
+          <p className="text-gray-500 text-sm">No data available in this time range.</p>
+        </div>
+      )}
     </div>
   );
 }

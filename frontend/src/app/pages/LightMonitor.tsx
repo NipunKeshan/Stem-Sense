@@ -33,22 +33,31 @@ export default function LightMonitor() {
 
         // Fetch readings for chart
         const resData = await axios.get('/api/sensors', { params: { timeRange } });
-        if (resData.data.success && resData.data.data && resData.data.data.length > 0) {
+        if (resData.data.success && resData.data.data) {
           const allData = resData.data.data;
-          setLatestData(allData[0]);
+          if (allData.length > 0) {
+            setLatestData(allData[0]);
 
-          const reversed = [...allData].reverse();
-          const filtered = reversed;
-
-          const processedData = filtered.map((item: any) => {
-            const d = new Date(item.timestamp);
-            return {
-              time: `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`,
-              lux: item.lux || 0,
-              dli: item.dli || 0,
-            };
-          });
-          setChartData(processedData);
+            const reversed = [...allData].reverse();
+            const processedData = reversed.map((item: any) => {
+              const d = new Date(item.timestamp);
+              return {
+                time: `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`,
+                lux: item.lux || 0,
+                dli: item.dli || 0,
+              };
+            });
+            setChartData(processedData);
+          } else {
+            // Fetch fallback latest data if time range is empty
+            try {
+              const latestRes = await axios.get('/api/sensors/latest');
+              if (latestRes.data.success && latestRes.data.data) {
+                setLatestData(latestRes.data.data);
+              }
+            } catch (e) {}
+            setChartData([]); // Clear chart data
+          }
         }
 
         // Fetch aggregate stats from backend (Holistic Fix)
@@ -158,8 +167,7 @@ export default function LightMonitor() {
       </div>
 
       {/* Trend Chart */}
-      {chartData.length > 0 && (
-        <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
+      <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 md:mb-6 gap-3">
             <h2 className="text-base md:text-lg font-semibold text-gray-800">Light Intensity Trend</h2>
             <div className="flex items-center gap-2">
@@ -185,49 +193,54 @@ export default function LightMonitor() {
               ))}
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={chartData}>
-              <defs>
-                <linearGradient id="colorLux" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#eab308" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#eab308" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.5} />
-              <XAxis dataKey="time" stroke="#6B7280" style={{ fontSize: '10px' }} />
-              <YAxis
-                stroke="#6B7280"
-                style={{ fontSize: '10px' }}
-                label={{ value: 'Lux', angle: -90, position: 'insideLeft', style: { fontSize: '10px' } }}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'white',
-                  border: '1px solid #E5E7EB',
-                  borderRadius: '8px',
-                  padding: '8px 12px',
-                  fontSize: '11px',
-                }}
-                formatter={(value: number) => [`${value} lux`, 'Light']}
-              />
-              <ReferenceArea y1={100} y2={500} fill="#eab308" fillOpacity={0.05}
-                label={{ value: 'Moderate', position: 'insideTopLeft', fill: '#eab308', fontSize: 9 }} />
-              <ReferenceLine y={500} stroke="#f97316" strokeDasharray="5 5" strokeOpacity={0.5}
-                label={{ value: '500 lux', position: 'right', fill: '#f97316', fontSize: 9 }} />
-              <Area
-                type="monotone"
-                dataKey="lux"
-                stroke="#eab308"
-                strokeWidth={2}
-                fillOpacity={1}
-                fill="url(#colorLux)"
-                name="Light (lux)"
-              />
-              <Brush dataKey="time" height={25} stroke="#eab308" travellerWidth={8} />
-            </AreaChart>
-          </ResponsiveContainer>
+          {chartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="colorLux" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#eab308" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#eab308" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.5} />
+                <XAxis dataKey="time" stroke="#6B7280" style={{ fontSize: '10px' }} />
+                <YAxis
+                  stroke="#6B7280"
+                  style={{ fontSize: '10px' }}
+                  label={{ value: 'Lux', angle: -90, position: 'insideLeft', style: { fontSize: '10px' } }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #E5E7EB',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    fontSize: '11px',
+                  }}
+                  formatter={(value: number) => [`${value} lux`, 'Light']}
+                />
+                <ReferenceArea y1={100} y2={500} fill="#eab308" fillOpacity={0.05}
+                  label={{ value: 'Moderate', position: 'insideTopLeft', fill: '#eab308', fontSize: 9 }} />
+                <ReferenceLine y={500} stroke="#f97316" strokeDasharray="5 5" strokeOpacity={0.5}
+                  label={{ value: '500 lux', position: 'right', fill: '#f97316', fontSize: 9 }} />
+                <Area
+                  type="monotone"
+                  dataKey="lux"
+                  stroke="#eab308"
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#colorLux)"
+                  name="Light (lux)"
+                />
+                <Brush dataKey="time" height={25} stroke="#eab308" travellerWidth={8} />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-[300px] bg-gray-50 rounded-lg border border-dashed border-gray-200">
+              <p className="text-gray-500 text-sm">No data available in this time range.</p>
+            </div>
+          )}
         </div>
-      )}
 
       {/* Summary Stats */}
       {/* Summary Statistics */}
