@@ -7,7 +7,7 @@ import { Droplets, TrendingUp } from 'lucide-react';
 import axios from 'axios';
 
 export default function SoilMoisture() {
-  const [timeRange, setTimeRange] = useState('24h');
+  const [timeRange, setTimeRange] = useState<'30m' | '1h' | '6h' | '1d' | '7d'>('30m');
   const [maxMoisture, setMaxMoisture] = useState<number | null>(null);
   const [minMoisture, setMinMoisture] = useState<number | null>(null);
   const [avgMoisture, setAvgMoisture] = useState<number | null>(null);
@@ -16,13 +16,12 @@ export default function SoilMoisture() {
     let mounted = true;
     const fetchStats = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/sensors');
+        const res = await axios.get('/api/sensors', { params: { timeRange } });
         if (!res.data?.success || !Array.isArray(res.data.data)) return;
         const arr = [...res.data.data];
         arr.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
-        const windowSize = timeRange === '7d' ? 168 : timeRange === '30d' ? arr.length || 0 : 24;
-        const slice = windowSize > 0 ? arr.slice(-windowSize) : arr;
+        const slice = arr;
 
         const values = slice
           .map((it: any) => Number(it.soil_moisture ?? NaN))
@@ -70,7 +69,7 @@ export default function SoilMoisture() {
           title="Max Soil Moisture"
           value={maxMoisture ?? '--'}
           unit="%"
-          color="bg-blue-100"
+          color="bg-blue-500"
         />
 
         <StatCard
@@ -78,7 +77,7 @@ export default function SoilMoisture() {
           title="Min Soil Moisture"
           value={minMoisture ?? '--'}
           unit="%"
-          color="bg-blue-100"
+          color="bg-blue-600"
         />
 
         <StatCard
@@ -86,7 +85,7 @@ export default function SoilMoisture() {
           title="Avg Soil Moisture"
           value={avgMoisture ?? '--'}
           unit="%"
-          color="bg-blue-200"
+          color="bg-cyan-500"
         />
       </div>
     </div>

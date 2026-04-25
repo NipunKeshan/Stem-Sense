@@ -75,10 +75,15 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 const sensorRoutes = require('./routes/sensorRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 app.use('/api/sensors', sensorRoutes);
 app.use('/api/auth', authRoutes);
+<<<<<<< HEAD
 app.use('/api/ml', mlRoutes);
 //app.use('/api/analytics', analyticsRoutes);
+=======
+app.use('/api/chat', chatRoutes);
+>>>>>>> origin/main
 
 // Root route
 app.get('/', (req, res) => {

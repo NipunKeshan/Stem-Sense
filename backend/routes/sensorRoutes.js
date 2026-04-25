@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { protect } = require('../middleware/authMiddleware');
 const { 
   getSensorData, 
   addSensorData, 
@@ -12,58 +13,63 @@ const {
   getLux,
   getDli,
   getSoilMoisture,
-  setPumpState,
   togglePump,
   getPumpState,
+<<<<<<< HEAD
   getTodayPumpOnData,
   getSensorStats
+=======
+  getSensorStats,
+  getAlerts
+>>>>>>> origin/main
 } = require('../controllers/sensorController');
 
 router.route('/')
-  .get(getSensorData)
-  .post(addSensorData);
+  .get(protect, getSensorData)
+  .post(addSensorData); // ESP8266 device posts here — no auth
 
 router.route('/latest')
-  .get(getLatestSensorData);
+  .get(protect, getLatestSensorData);
 
 router.route('/stats')
-  .get(getSensorStats);
+  .get(protect, getSensorStats);
 
 // Individual sensor endpoints
 router.route('/temperature')
-  .get(getTemperature);
+  .get(protect, getTemperature);
 
 router.route('/humidity')
-  .get(getHumidity);
+  .get(protect, getHumidity);
 
 router.route('/tvoc')
-  .get(getTvoc);
+  .get(protect, getTvoc);
 
 router.route('/eco2')
-  .get(getEco2);
+  .get(protect, getEco2);
 
 router.route('/aqi')
-  .get(getAqi);
+  .get(protect, getAqi);
 
 router.route('/lux')
-  .get(getLux);
+  .get(protect, getLux);
 
 router.route('/dli')
-  .get(getDli);
+  .get(protect, getDli);
 
 router.route('/soil-moisture')
-  .get(getSoilMoisture);
+  .get(protect, getSoilMoisture);
 
-// Pump state endpoint (legacy)
-router.route('/pump-state')
-  .post(setPumpState);
+// Alerts endpoint
+router.route('/alerts')
+  .get(protect, getAlerts);
 
 // Pump control endpoint (frontend)
 router.route('/pump/today')
   .get(getTodayPumpOnData);
 
 router.route('/pump')
-  .get(getPumpState)
-  .post(togglePump);
+  .get(protect, getPumpState)
+  .post(protect, togglePump);
 
 module.exports = router;
+

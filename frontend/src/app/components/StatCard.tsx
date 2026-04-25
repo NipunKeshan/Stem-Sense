@@ -15,6 +15,7 @@ interface StatCardProps {
     type: 'success' | 'warning' | 'danger' | 'info';
   };
   color: string;
+  loading?: boolean;
 }
 
 export default function StatCard({ 
@@ -24,7 +25,8 @@ export default function StatCard({
   unit, 
   trend, 
   status, 
-  color 
+  color,
+  loading = false
 }: StatCardProps) {
   const getStatusStyles = (type: string) => {
     switch (type) {
@@ -65,12 +67,16 @@ export default function StatCard({
 
       <div>
         <h3 className="text-gray-500 text-xs md:text-sm font-medium mb-1 uppercase tracking-tight">{title}</h3>
-        <div className="flex items-baseline gap-1">
-          <p className="text-2xl md:text-3xl font-extrabold text-gray-900 tabular-nums">
-            {value}
-          </p>
-          {unit && <span className="text-sm md:text-base font-semibold text-gray-400">{unit}</span>}
-        </div>
+        {loading ? (
+          <div className="h-8 w-24 bg-gray-200 rounded animate-pulse mt-1"></div>
+        ) : (
+          <div className="flex items-baseline gap-1">
+            <p className="text-2xl md:text-3xl font-extrabold text-gray-900 tabular-nums">
+              {value}
+            </p>
+            {unit && <span className="text-sm md:text-base font-semibold text-gray-400">{unit}</span>}
+          </div>
+        )}
       </div>
     </div>
   );
