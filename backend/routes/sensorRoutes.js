@@ -16,7 +16,8 @@ const {
   togglePump,
   getPumpState,
   getSensorStats,
-  getAlerts
+  getAlerts,
+  getMLStatus
 } = require('../controllers/sensorController');
 
 router.route('/')
@@ -62,6 +63,10 @@ router.route('/alerts')
 router.route('/pump')
   .get(protect, getPumpState)
   .post(protect, togglePump);
+
+// ML model status endpoint
+router.route('/ml-status')
+  .get(protect, getMLStatus);
 
 module.exports = router;
 
