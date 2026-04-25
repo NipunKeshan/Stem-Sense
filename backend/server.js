@@ -6,7 +6,8 @@ const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const User = require('./models/User');
 const SensorData = require('./models/SensorData');
-
+const mlRoutes = require('./routes/mlRoutes');
+//const analyticsRoutes = require('./routes/analyticsRoutes');
 // Connect to database
 connectDB();
 
@@ -34,7 +35,7 @@ const seedSensorData = async () => {
     if (existingData === 0) {
       const testData = [];
       const now = new Date();
-      
+
       // Generate 24 hours of test data (hourly readings)
       for (let i = 23; i >= 0; i--) {
         const timestamp = new Date(now.getTime() - i * 60 * 60 * 1000);
@@ -52,7 +53,7 @@ const seedSensorData = async () => {
           timestamp
         });
       }
-      
+
       await SensorData.insertMany(testData);
       console.log('Test sensor data seeded (24 hours of readings)');
     }
@@ -77,6 +78,8 @@ const sensorRoutes = require('./routes/sensorRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 app.use('/api/sensors', sensorRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/ml', mlRoutes);
+//app.use('/api/analytics', analyticsRoutes);
 app.use('/api/chat', chatRoutes);
 
 // Root route
@@ -89,3 +92,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+

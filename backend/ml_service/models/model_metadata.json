@@ -1,0 +1,39 @@
+{
+  "model_name": "Linear Regression",
+  "feature_cols": [
+    "temperature_c",
+    "humidity_pct",
+    "moisture_pct",
+    "lux",
+    "tvoc_ppb",
+    "eco2_ppm",
+    "aqi",
+    "stress_score"
+  ],
+  "target_col": "future_stress_score",
+  "metrics": {
+    "r2_test": 0.9636,
+    "mae": 5.048,
+    "rmse": 6.1591,
+    "cv_r2_mean": 0.9573,
+    "cv_r2_std": 0.0018
+  },
+  "stress_zones": {
+    "healthy": [
+      0,
+      30
+    ],
+    "warning": [
+      31,
+      60
+    ],
+    "critical": [
+      61,
+      100
+    ]
+  },
+  "training_samples": 4040,
+  "test_samples": 1010,
+  "zone_accuracy": 0.904,
+  "trained_on": "2026-04-25T00:49:35.801345"
+}

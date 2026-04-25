@@ -42,11 +42,11 @@ const getPaginatedSensorData = async (req, res) => {
       .select('sensor_id captured_at env soil actuators'); // Use projection to fetch only required fields
 
     const command = await PumpCommand.findOne({ _id: 'global' });
-    res.status(200).json({ 
-      success: true, 
-      count: data.length, 
+    res.status(200).json({
+      success: true,
+      count: data.length,
       data,
-      desired_pump_state: command ? command.pump : 0 
+      desired_pump_state: command ? command.pump : 0
     });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Server Error', message: error.message });
@@ -60,8 +60,8 @@ const getLatestSensorData = async (req, res) => {
   try {
     const data = await SensorData.findOne().sort({ captured_at: -1 });
     const command = await PumpCommand.findOne({ _id: 'global' });
-    res.status(200).json({ 
-      success: true, 
+    res.status(200).json({
+      success: true,
       data,
       desired_pump_state: command ? command.pump : 0
     });
@@ -343,8 +343,7 @@ const togglePump = async (req, res) => {
       { _id: 'global' },
       { 
         pump: pump, 
-        updated_at: new Date(),
-        source: 'manual'
+        updated_at: new Date() 
       },
       { upsert: true, returnDocument: 'after' }
     );
@@ -418,7 +417,7 @@ const getSensorStats = async (req, res) => {
     const calculate = (arr, key, decimals = 1) => {
       const values = arr.map(d => d[key]).filter(v => v !== undefined && v !== null);
       if (values.length === 0) return { min: 0, max: 0, avg: 0 };
-      
+
       const sum = values.reduce((a, b) => a + b, 0);
       return {
         min: roundTo(Math.min(...values), decimals),
@@ -444,6 +443,91 @@ const getSensorStats = async (req, res) => {
   }
 };
 
+// GET /api/sensors/pump/today
+// Aggregates consecutive pump-ON datapoints into runs. A gap > 3 minutes
+// between samples breaks a run (fixed 3-minute interval).
+const getTodayPumpOnData = async (req, res) => {
+  try {
+    const gapMs = 3 * 60 * 1000; // fixed 3 minutes
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const data = await SensorData.find({ captured_at: { $gte: startOfDay } }).sort({ captured_at: 1 });
+
+    if (!data || data.length === 0) {
+      return res.status(200).json({ success: true, runs: [], total_runs: 0 });
+    }
+
+    // Normalize points to [{ ts: Date, pump_on: boolean }]
+    const points = data
+      .map(d => ({
+        ts: d.captured_at ? new Date(d.captured_at) : null,
+        pump_on: d.actuators && typeof d.actuators.pump_on !== 'undefined'
+          ? Boolean(d.actuators.pump_on)
+          : (typeof d.pump_state !== 'undefined' ? d.pump_state === 1 : false)
+      }))
+      .filter(p => p.ts !== null)
+      .sort((a, b) => a.ts - b.ts);
+
+    const runs = [];
+    let current = null;
+
+    for (const p of points) {
+      if (p.pump_on) {
+        if (!current) {
+          current = { start: p.ts, end: p.ts, count: 1 };
+        } else {
+          const diff = p.ts - current.end;
+          if (diff <= gapMs) {
+            current.end = p.ts;
+            current.count += 1;
+          } else {
+            current.duration_ms = current.end - current.start;
+            runs.push({
+              start: current.start,
+              end: current.end,
+              duration_ms: current.duration_ms,
+              duration_min: roundTo(current.duration_ms / 60000, 2),
+              sample_count: current.count
+            });
+            current = { start: p.ts, end: p.ts, count: 1 };
+          }
+        }
+      } else if (current) {
+        // close current run on encountering pump_off
+        current.duration_ms = current.end - current.start;
+        runs.push({
+          start: current.start,
+          end: current.end,
+          duration_ms: current.duration_ms,
+          duration_min: roundTo(current.duration_ms / 60000, 2),
+          sample_count: current.count
+        });
+        current = null;
+      }
+    }
+
+    if (current) {
+      current.duration_ms = current.end - current.start;
+      runs.push({
+        start: current.start,
+        end: current.end,
+        duration_ms: current.duration_ms,
+        duration_min: roundTo(current.duration_ms / 60000, 2),
+        sample_count: current.count
+      });
+    }
+
+    const totalMinutes = roundTo(runs.reduce((s, r) => s + (r.duration_ms || 0), 0) / 60000, 2);
+
+    res.status(200).json({
+      success: true,
+      runs
+    });
+  } catch (error) {
+    console.error(error);
+  }
+};
 // @desc    Get all alerts with pagination and filtering
 // @route   GET /api/sensors/alerts
 // @access  Public
@@ -473,7 +557,7 @@ const getAlerts = async (req, res) => {
 
     // Build specific query for fetching paginated data
     const query = { ...baseQuery };
-    
+
     // Apply type/severity filter
     if (filterType !== 'all') {
       if (['critical', 'warning'].includes(filterType)) {
@@ -499,9 +583,9 @@ const getAlerts = async (req, res) => {
       .skip(startIndex)
       .limit(limit);
 
-    res.status(200).json({ 
-      success: true, 
-      count: alerts.length, 
+    res.status(200).json({
+      success: true,
+      count: alerts.length,
       total,
       totalPages: Math.ceil(total / limit),
       currentPage: page,
@@ -511,41 +595,7 @@ const getAlerts = async (req, res) => {
         manual: manualCount,
         auto: autoCount
       },
-      data: alerts 
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: 'Server Error', message: error.message });
-  }
-};
-
-// @desc    Get ML model status and metadata
-// @route   GET /api/sensors/ml-status
-// @access  Public
-const getMLStatus = async (req, res) => {
-  try {
-    const meta = require('../ml/model_meta.json');
-    const command = await PumpCommand.findOne({ _id: 'global' });
-
-    const MANUAL_WINDOW_MS = 10 * 60 * 1000;
-    const isManualOverride = command?.source === 'manual' &&
-      command?.updated_at &&
-      (Date.now() - new Date(command.updated_at).getTime()) < MANUAL_WINDOW_MS;
-
-    res.status(200).json({
-      success: true,
-      model: {
-        accuracy: meta.performance.test_accuracy,
-        roc_auc: meta.performance.roc_auc,
-        features: meta.all_features.length,
-        size_kb: meta.onnx_meta.size_kb,
-        top_feature: Object.keys(meta.feature_importance)[0],
-      },
-      mode: isManualOverride ? 'manual' : 'ml',
-      last_command: command ? {
-        pump: command.pump,
-        source: command.source || 'unknown',
-        updated_at: command.updated_at
-      } : null,
+      data: alerts
     });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Server Error', message: error.message });
@@ -567,6 +617,5 @@ module.exports = {
   togglePump,
   getPumpState,
   getSensorStats,
-  getAlerts,
-  getMLStatus
+  getAlerts
 };
